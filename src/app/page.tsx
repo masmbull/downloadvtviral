@@ -1,5 +1,11 @@
 'use client';
+
 import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Download, Film } from 'lucide-react';
 
 interface VideoInfo {
   platform: 'instagram' | 'tiktok';
@@ -54,9 +60,12 @@ export default function Home() {
 
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 font-sans min-h-screen">
-      <main className="flex flex-1 w-full max-w-4xl flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <main className="flex flex-1 w-full max-w-4xl flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative">
+        <ThemeToggle />
+
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+          <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center gap-3">
+            <Film className="size-12" />
             DownloadVTViral
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300">
@@ -64,73 +73,71 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Paste video link here
-              </label>
-              <input
+        <Card className="w-full max-w-2xl shadow-2xl">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">
+              Paste video link here
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <Input
                 type="text"
-                id="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://www.instagram.com/... or https://www.tiktok.com/..."
-                className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                 required
               />
-            </div>
 
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Processing...' : 'Download Video'}
-            </button>
-          </form>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? 'Processing...' : 'Download Video'}
+              </Button>
+            </form>
 
-          {videoInfo && (
-            <div className="mt-8 space-y-6">
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-                  {videoInfo.title || 'Video Found'}
-                </h2>
-                
-                {videoInfo.thumbnail && (
-                  <div className="mb-4 rounded-lg overflow-hidden">
-                    <img src={videoInfo.thumbnail} alt="Video thumbnail" className="w-full h-auto" />
+            {videoInfo && (
+              <div className="mt-8 space-y-6">
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                  <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
+                    {videoInfo.title || 'Video Found'}
+                  </h2>
+
+                  {videoInfo.thumbnail && (
+                    <div className="mb-4 rounded-lg overflow-hidden">
+                      <img src={videoInfo.thumbnail} alt="Video thumbnail" className="w-full h-auto" />
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                      Download Options:
+                    </h3>
+                    {videoInfo.downloads.map((download, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        className="w-full justify-between"
+                        onClick={() => window.open(download.url, '_blank')}
+                      >
+                        <span>{download.quality}</span>
+                        <Download className="size-5" />
+                      </Button>
+                    ))}
                   </div>
-                )}
-
-                <div className="space-y-3">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                    Download Options:
-                  </h3>
-                  {videoInfo.downloads.map((download, index) => (
-                    <a
-                      key={index}
-                      href={download.url}
-                      download
-                      className="flex items-center justify-between w-full bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 font-medium py-3 px-4 rounded-lg transition-colors"
-                    >
-                      <span>{download.quality}</span>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </a>
-                  ))}
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="mt-12 text-center text-gray-600 dark:text-gray-400">
           <p className="text-sm">
