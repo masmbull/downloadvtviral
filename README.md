@@ -2,66 +2,58 @@
 
 Instagram & TikTok video downloader. Free, fast, and easy to use.
 
-## Features
+## Live
 
-- Download Instagram Reels, Posts, and Stories
-- Download TikTok videos without watermark
-- Simple, user-friendly interface
-- Mobile responsive design
-- Rate limiting for safety
+- Production: https://downloadvtviral.vercel.app
 
-## Project setup
+## Progress Checklist
 
-1. Clone this repo
-2. Run `npm install`
-3. Create `.env.local` from `.env.example` and add your RapidAPI key
-4. Run `npm run dev` to start development server
+- [x] Project scaffold with Next.js 16 + TypeScript + Tailwind v4
+- [x] GitHub repo linked at https://github.com/masmbull/downloadvtviral
+- [x] Vercel production deployment
+- [x] Basic download page with Instagram / TikTok URL input
+- [x] `/api/download` API with rate limiting and URL validation
+- [x] shadcn/ui setup (`input`, `button`, `card`)
+- [x] Theme provider with light/dark toggle
+- [x] SpeedInsights enabled
+- [x] Security headers configured (`X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy`)
+- [ ] Connect reliable Instagram/TikTok provider endpoint and handle failures
+- [ ] Add loading skeleton and better empty/error states
+- [ ] Add about / contact / privacy pages
+- [ ] Add basic analytics dashboard for usage
+- [ ] Monetization placeholders (ads / affiliate links)
 
-## Deploy to Vercel
+## Tech Stack
 
-1. Push this project to GitHub
-2. Go to Vercel and import your repo
-3. Add environment variables in Vercel dashboard
-4. Deploy!
+- Next.js 16
+- React 19
+- shadcn/ui
+- Tailwind CSS v4
+- Vercel Speed Insights
+- RapidAPI-backed video info fetcher
 
-## Monetization ideas
+## Security
 
-### Free options (no cost):
+- HTTPS enforced via Vercel
+- Content security headers in `next.config.ts`
+- Input sanitization + URL/hostname validation
+- In-memory rate limiting per IP on `/api/download`
+- No secrets exposed client-side
 
-1. **Google AdSense** - Display ads on your site
-2. **Coingeater** (formerly LootiLink) - URL shortener with ads
-3. **Ezoic** - Alternative ad network
-4. **Sponsored links** below download buttons
-5. **Affiliate marketing** for phone accessories, social media tools
-6. **Donation button** (PayPal, Ko-fi)
-
-### Paid options:
-
-1. **Premium features** (batch download, no wait time)
-2. **Remove ads** for small fee
-3. **API access** for developers
-4. **White-label** solution for other sites
-
-## Free tools needed
-
-1. **RapidAPI** - Free tier for Instagram/TikTok APIs (100 requests/day)
-   - Sign up at https://rapidapi.com
-   - Subscribe to free Instagram/TikTok downloader APIs
-
-2. **Vercel** - Free hosting for Next.js projects
-   - Deploy automatically from GitHub
-
-3. **GitHub** - Free Git repository hosting
-
-4. **Namecheap / Cloudflare** - Domain registration (~$1-3/year with promo)
-
-## Environment variables
+## Environment Variables
 
 ```
 RAPIDAPI_KEY=your_key_here
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 NEXT_PUBLIC_SITE_NAME=DownloadVTViral
 ```
+
+## Local Development
+
+1. Clone repo
+2. Run `npm install`
+3. Copy `.env.example` to `.env.local`
+4. Run `npm run dev`
 
 ## License
 
