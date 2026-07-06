@@ -35,7 +35,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let videoData: any = null;
+    let videoData: {
+      platform: string;
+      title: string;
+      thumbnail: string;
+      downloads: Array<{ quality: string; url: string }>;
+    } | null = null;
 
     if (platform === 'instagram') {
       videoData = await getInstagramVideo(url);
@@ -60,7 +65,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function getInstagramVideo(url: string): Promise<any> {
+async function getInstagramVideo(url: string): Promise<{
+  platform: string;
+  title: string;
+  thumbnail: string;
+  downloads: Array<{ quality: string; url: string }>;
+}> {
   try {
     // Using a free Instagram API service
     const apiUrl = `https://instagram-downloader-api1.p.rapidapi.com/get-media-info?url=${encodeURIComponent(url)}`;
@@ -96,7 +106,12 @@ async function getInstagramVideo(url: string): Promise<any> {
   }
 }
 
-async function getTikTokVideo(url: string): Promise<any> {
+async function getTikTokVideo(url: string): Promise<{
+  platform: string;
+  title: string;
+  thumbnail: string;
+  downloads: Array<{ quality: string; url: string }>;
+}> {
   try {
     // Using a free TikTok API service
     const apiUrl = `https://tiktok-downloader-api1.p.rapidapi.com/get-video-info?url=${encodeURIComponent(url)}`;
