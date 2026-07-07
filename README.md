@@ -17,6 +17,15 @@ Instagram & TikTok video downloader. Free, fast, and easy to use.
 - [x] Theme provider with light/dark toggle
 - [x] SpeedInsights enabled
 - [x] Security headers configured (`X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy`)
+- [x] Multi-link downloader (up to 3 links in demo mode)
+- [x] Photo collage support for Instagram (download images one by one)
+- [x] Admin login page with env-based auth
+- [x] Dashboard protected behind admin login
+- [x] Public `/status` page with live API/backend health checks
+- [x] Visitor IP tracking in dashboard
+- [x] "Download other video" CTA between batch results
+- [x] Filename sanitization based on actual video title
+- [x] Hidden iframe download proxy to prevent redirect
 - [ ] Connect reliable Instagram/TikTok provider endpoint and handle failures
 - [ ] Add loading skeleton and better empty/error states
 - [ ] Add about / contact / privacy pages
@@ -39,6 +48,8 @@ Instagram & TikTok video downloader. Free, fast, and easy to use.
 - Input sanitization + URL/hostname validation
 - In-memory rate limiting per IP on `/api/download`
 - No secrets exposed client-side
+- Admin auth via `/api/admin/login` with env credentials
+- Dashboard and admin routes protected behind auth
 
 ## Environment Variables
 
@@ -46,6 +57,8 @@ Instagram & TikTok video downloader. Free, fast, and easy to use.
 RAPIDAPI_KEY=your_key_here
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 NEXT_PUBLIC_SITE_NAME=DownloadVTViral
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
 ```
 
 ## Local Development
