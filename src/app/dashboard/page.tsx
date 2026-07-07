@@ -1,30 +1,31 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Download, Film, TrendingUp, Trash2, ArrowLeft, Globe, MapPin } from 'lucide-react';
+import { Download, Film, TrendingUp, ArrowLeft, Globe, MapPin, Users, Clock, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useAdminAuth } from '@/components/admin-auth-provider';
 
-interface HistoryItem {
-  id: string;
-  platform: 'instagram' | 'tiktok';
-  title: string;
-  thumbnail: string;
-  downloads: Array<{ quality: string; url: string }>;
-  timestamp: number;
+interface StatsData {
+  totalRequests: number;
+  successfulDownloads: number;
+  failedRequests: number;
+  successRate: string;
+  averageResponseTime: number;
+  visitorStats: { totalVisits: number; uniqueVisitors: number; last5Minutes: number };
+  downloadsByPlatform: { instagram: number; tiktok: number; youtube: number; doodstream: number };
+  visitors: Array<{ ip: string; userAgent: string; timestamp: number }>;
 }
 
 export default function DashboardPage() {
   const { isAuthenticated } = useAdminAuth();
   const router = useRouter();
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
-  const [visitors, setVisitors] = useState<Array<{ ip: string; userAgent: string; timestamp: number }>>([]);
-  const [visitorCount, setVisitorCount] = useState(0);
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -32,52 +33,36 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, router]);
 
-  useEffect(() => {
+  const fetchStats = async () => {
+    setLoading(true);
     try {
-      const stored = localStorage.getItem('downloadHistory');
-      if (stored) setHistory(JSON.parse(stored));
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/visitors/track', { method: 'POST' }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/visitors/track')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.visits) {
-          setVisitors(data.visits);
-          setVisitorCount(data.visits.length);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const clearHistory = () => {
-    localStorage.removeItem('downloadHistory');
-    setHistory([]);
+      const res = await fetch('/api/admin/stats');
+      const data = await res.json();
+      setStats(data);
+      setLastRefresh(new Date());
+    } catch {
+      // keep previous stats
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const platformCounts = useMemo(
-    () => ({
-      instagram: history.filter((h) => h.platform === 'instagram').length,
-      tiktok: history.filter((h) => h.platform === 'tiktok').length,
-    }),
-    [history]
-  );
-
-  const formatDate = (timestamp: number) =>
-    new Date(timestamp).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchStats();
+      const interval = setInterval(fetchStats, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) return null;
+
+  const platforms = [
+    { key: 'instagram', label: 'Instagram', color: 'text-pink-500' },
+    { key: 'tiktok', label: 'TikTok', color: 'text-blue-500' },
+    { key: 'youtube', label: 'YouTube', color: 'text-red-500' },
+    { key: 'doodstream', label: 'Doodstream', color: 'text-orange-500' },
+  ] as const;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
@@ -91,6 +76,10 @@ export default function DashboardPage() {
               <span className="text-xl font-bold gradient-text hidden sm:block">DownloadVTViral</span>
             </Link>
             <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={fetchStats} disabled={loading} className="gap-1">
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
               <ThemeToggle />
               <Link href="/">
                 <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
@@ -101,73 +90,100 @@ export default function DashboardPage() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4 flex items-center justify-center gap-3">
-            <TrendingUp className="w-10 h-10 text-primary" />Download <span className="gradient-text">Dashboard</span>
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center gap-3">
+            <TrendingUp className="w-10 h-10 text-primary" />
+            Download <span className="gradient-text">Dashboard</span>
           </h1>
-          <p className="text-lg text-muted-foreground">View your download history and statistics</p>
+          {lastRefresh && (
+            <p className="text-sm text-muted-foreground">Last updated: {lastRefresh.toLocaleTimeString()}</p>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-          <Card className="border-border"><CardContent className="pt-6"><div className="text-center"><p className="text-3xl font-bold gradient-text">{history.length}</p><p className="text-sm text-muted-foreground mt-1">Total Downloads</p></div></CardContent></Card>
-          <Card className="border-border"><CardContent className="pt-6"><div className="text-center"><p className="text-3xl font-bold text-green-500">{platformCounts.instagram}</p><p className="text-sm text-muted-foreground mt-1">Instagram</p></div></CardContent></Card>
-          <Card className="border-border"><CardContent className="pt-6"><div className="text-center"><p className="text-3xl font-bold text-pink-500">{platformCounts.tiktok}</p><p className="text-sm text-muted-foreground mt-1">TikTok</p></div></CardContent></Card>
+        {/* Top stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <Card className="border-border">
+            <CardContent className="pt-6 text-center">
+              <Download className="w-6 h-6 text-primary mx-auto mb-2" />
+              <p className="text-3xl font-bold gradient-text">{stats?.successfulDownloads ?? '—'}</p>
+              <p className="text-xs text-muted-foreground mt-1">Total Downloads</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-6 text-center">
+              <Users className="w-6 h-6 text-blue-500 mx-auto mb-2" />
+              <p className="text-3xl font-bold text-blue-500">{stats?.visitorStats.uniqueVisitors ?? '—'}</p>
+              <p className="text-xs text-muted-foreground mt-1">Unique Visitors</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-6 text-center">
+              <Clock className="w-6 h-6 text-green-500 mx-auto mb-2" />
+              <p className="text-3xl font-bold text-green-500">{stats?.visitorStats.last5Minutes ?? '—'}</p>
+              <p className="text-xs text-muted-foreground mt-1">Active (5 min)</p>
+            </CardContent>
+          </Card>
+          <Card className="border-border">
+            <CardContent className="pt-6 text-center">
+              <TrendingUp className="w-6 h-6 text-purple-500 mx-auto mb-2" />
+              <p className="text-3xl font-bold text-purple-500">{stats?.successRate ?? '—'}%</p>
+              <p className="text-xs text-muted-foreground mt-1">Success Rate</p>
+            </CardContent>
+          </Card>
         </div>
 
-        <Card className="border-border mb-12">
-          <CardHeader><CardTitle className="flex items-center gap-2"><Globe className="w-5 h-5 text-primary" />Visitor IPs <span className="text-sm font-normal text-muted-foreground">({visitorCount} total)</span></CardTitle></CardHeader>
+        {/* Downloads by platform */}
+        <Card className="border-border mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Film className="w-5 h-5 text-primary" /> Downloads by Platform
+            </CardTitle>
+          </CardHeader>
           <CardContent>
-            {visitors.length === 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {platforms.map(({ key, label, color }) => (
+                <div key={key} className="text-center p-4 rounded-xl bg-muted/50">
+                  <p className={`text-2xl font-bold ${color}`}>
+                    {stats?.downloadsByPlatform[key] ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Visitor IPs */}
+        <Card className="border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-primary" />
+              Recent Visitors
+              <span className="text-sm font-normal text-muted-foreground">
+                ({stats?.visitorStats.totalVisits ?? 0} total)
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!stats || stats.visitors.length === 0 ? (
               <p className="text-sm text-muted-foreground">No visitors tracked yet.</p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {visitors.map((visitor, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-muted-foreground" /><span className="text-sm font-mono">{visitor.ip}</span></div>
-                    <span className="text-xs text-muted-foreground">{new Date(visitor.timestamp).toLocaleTimeString()}</span>
+              <div className="space-y-1 max-h-72 overflow-y-auto">
+                {stats.visitors.map((visitor, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-sm">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                      <span className="font-mono">{visitor.ip}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(visitor.timestamp).toLocaleTimeString()}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
-
-        {history.length > 0 && (
-          <div className="flex justify-end mb-4">
-            <Button variant="destructive" size="sm" onClick={clearHistory} className="gap-2"><Trash2 className="w-4 h-4" />Clear History</Button>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {history.length === 0 ? (
-            <Card className="border-border">
-              <CardContent className="py-16 text-center">
-                <Download className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No downloads yet</h3>
-                <p className="text-muted-foreground mb-6">Start downloading videos to see your history here</p>
-                <Link href="/"><Button className="gradient-primary hover:opacity-90">Go to Downloader</Button></Link>
-              </CardContent>
-            </Card>
-          ) : (
-            history.map((item) => (
-              <Card key={item.id} className="border-border hover:border-primary/30 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    {item.thumbnail && (
-                      <div className="w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                        <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium truncate">{item.title || 'Untitled'}</h3>
-                      <p className="text-sm text-muted-foreground">{item.platform === 'instagram' ? 'Instagram' : 'TikTok'} • {formatDate(item.timestamp)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
       </main>
     </div>
   );

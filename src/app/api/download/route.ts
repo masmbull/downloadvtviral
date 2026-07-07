@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { rateLimit, validateUrl, sanitizeInput } from '@/lib/rate-limit';
+import { recordVisit, recordDownload } from '@/lib/store';
 
 interface DownloadRequest {
   url: string;
@@ -286,6 +287,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Track the successful download
+    const forwarded = request.headers.get('x-forwarded-for');
+    const realIp = request.headers.get('x-real-ip');
+    const ip = forwarded ? forwarded.split(',')[0].trim() : realIp || 'unknown';
+    recordVisit(ip, request.headers.get('user-agent') || 'unknown');
+    recordDownload(platform, videoData.title);
 
     return NextResponse.json(videoData);
   } catch (error) {

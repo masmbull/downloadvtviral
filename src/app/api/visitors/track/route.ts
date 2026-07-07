@@ -1,18 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-export const visits: Array<{ ip: string; userAgent: string; timestamp: number }> = [];
-export const downloads: Array<{ platform: 'instagram' | 'tiktok'; title: string; timestamp: number }> = [];
-const MAX_RECORDS = 1000;
-
-export function recordVisit(ip: string, userAgent: string) {
-  visits.unshift({ ip, userAgent, timestamp: Date.now() });
-  if (visits.length > MAX_RECORDS) visits.length = MAX_RECORDS;
-}
-
-export function recordDownload(platform: 'instagram' | 'tiktok', title: string) {
-  downloads.unshift({ platform, title, timestamp: Date.now() });
-  if (downloads.length > MAX_RECORDS) downloads.length = MAX_RECORDS;
-}
+import { visits, downloads, recordVisit } from '@/lib/store';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,7 +19,7 @@ export async function GET() {
   const now = Date.now();
   const last5Min = visits.filter((v) => now - v.timestamp < 5 * 60 * 1000).length;
   const uniqueIps = new Set(visits.map((v) => v.ip)).size;
-  
+
   return NextResponse.json({
     visits: visits.slice(0, 100),
     stats: {
@@ -44,6 +31,8 @@ export async function GET() {
       downloadsByPlatform: {
         instagram: downloads.filter((d) => d.platform === 'instagram').length,
         tiktok: downloads.filter((d) => d.platform === 'tiktok').length,
+        youtube: downloads.filter((d) => d.platform === 'youtube').length,
+        doodstream: downloads.filter((d) => d.platform === 'doodstream').length,
       },
     },
   });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { visits, downloads } from '@/app/api/visitors/track/route';
+import { visits, downloads } from '@/lib/store';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,20 +7,18 @@ export async function GET(request: NextRequest) {
     const last5Min = visits.filter((v) => now - v.timestamp < 5 * 60 * 1000).length;
     const uniqueIps = new Set(visits.map((v) => v.ip)).size;
     const successfulDownloads = downloads.length;
-    const failedRequests = visits.filter((v) => v.userAgent.includes('error')).length;
-    const totalRequests = Math.max(visits.length, successfulDownloads + failedRequests);
+    const totalRequests = visits.length;
     const successRate = totalRequests > 0 ? ((successfulDownloads / totalRequests) * 100).toFixed(1) : '0.0';
-    const averageResponseTime = 1.2;
 
     return NextResponse.json({
       totalRequests,
       successfulDownloads,
-      failedRequests,
+      failedRequests: 0,
       successRate,
-      averageResponseTime,
+      averageResponseTime: 1.2,
       rateLimitWindow: 60,
       maxRequestsPerWindow: 10,
-      uptime: '0.5m',
+      uptime: `${((now - (global as any).__startTime || now) / 1000 / 60).toFixed(1)}m`,
       visitors: visits.slice(0, 100),
       visitorStats: {
         totalVisits: visits.length,
@@ -30,6 +28,8 @@ export async function GET(request: NextRequest) {
       downloadsByPlatform: {
         instagram: downloads.filter((d) => d.platform === 'instagram').length,
         tiktok: downloads.filter((d) => d.platform === 'tiktok').length,
+        youtube: downloads.filter((d) => d.platform === 'youtube').length,
+        doodstream: downloads.filter((d) => d.platform === 'doodstream').length,
       },
     });
   } catch (error) {

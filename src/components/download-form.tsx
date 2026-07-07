@@ -29,18 +29,18 @@ function sanitizeFilename(name: string) {
 function triggerDownload(downloadUrl: string, filename: string, onStart?: () => void, onEnd?: () => void) {
   if (onStart) onStart();
 
-  const params = new URLSearchParams({
-    url: downloadUrl,
-    filename,
-    delay: '5'
-  });
-
-  const shortlinkWindow = window.open(`/api/shortlink/redirect?${params.toString()}`, '_blank');
-  if (shortlinkWindow) shortlinkWindow.focus();
+  const params = new URLSearchParams({ url: downloadUrl, filename });
+  const a = document.createElement('a');
+  a.href = `/api/proxy/download?${params.toString()}`;
+  a.download = filename;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 
   setTimeout(() => {
     if (onEnd) onEnd();
-  }, 5000);
+  }, 2000);
 }
 
 export function DownloadForm() {
@@ -253,7 +253,7 @@ export function DownloadForm() {
                   </>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">{(result as any).error || 'Failed to extract media'}</p>
+                    <p className="text-sm text-muted-foreground">{(result as any).message || (result as any).error || 'Failed to extract media'}</p>
                     <Button
                       variant="outline"
                       size="sm"

@@ -1,6 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+
+const AUTH_KEY = 'adminAuth';
 
 type AdminAuthContextType = {
   isAuthenticated: boolean;
@@ -12,6 +14,15 @@ const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefin
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(AUTH_KEY);
+      if (stored === 'true') setIsAuthenticated(true);
+    } catch {}
+    setHydrated(true);
+  }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
@@ -20,9 +31,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
-
       if (response.ok) {
         setIsAuthenticated(true);
+        localStorage.setItem(AUTH_KEY, 'true');
         return true;
       }
       return false;
@@ -33,10 +44,10 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setIsAuthenticated(false);
-    try {
-      localStorage.removeItem('adminAuth');
-    } catch {}
+    try { localStorage.removeItem(AUTH_KEY); } catch {}
   };
+
+  if (!hydrated) return null;
 
   return (
     <AdminAuthContext.Provider value={{ isAuthenticated, login, logout }}>
