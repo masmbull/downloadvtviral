@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 
 type AdminAuthContextType = {
   isAuthenticated: boolean;
@@ -13,13 +13,6 @@ const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefin
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  useEffect(() => {
-    const auth = localStorage.getItem('adminAuth');
-    if (auth === 'true') {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       const response = await fetch('/api/admin/login', {
@@ -30,7 +23,6 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         setIsAuthenticated(true);
-        localStorage.setItem('adminAuth', 'true');
         return true;
       }
       return false;
@@ -41,7 +33,9 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setIsAuthenticated(false);
-    localStorage.removeItem('adminAuth');
+    try {
+      localStorage.removeItem('adminAuth');
+    } catch {}
   };
 
   return (
