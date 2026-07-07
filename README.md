@@ -26,11 +26,15 @@ Instagram & TikTok video downloader. Free, fast, and easy to use.
 - [x] "Download other video" CTA between batch results
 - [x] Filename sanitization based on actual video title
 - [x] Hidden iframe download proxy to prevent redirect
-- [ ] Connect reliable Instagram/TikTok provider endpoint and handle failures
-- [ ] Add loading skeleton and better empty/error states
-- [ ] Add about / contact / privacy pages
-- [ ] Add basic analytics dashboard for usage
-- [ ] Monetization placeholders (ads / affiliate links)
+- [x] Download progress bars
+- [x] Real admin stats API
+- [x] YouTube video download support
+- [x] Doodstream video download support
+- [x] Supported platforms section on homepage
+- [x] Shortlink monetization integration (punyasahlan.my.id)
+- [x] 5-second ad countdown before download
+- [x] Visitor IP and network speed display under download buttons
+- [x] IDM and browser compatible downloads
 
 ## Tech Stack
 
