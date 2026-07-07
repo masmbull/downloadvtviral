@@ -6,20 +6,6 @@ interface DownloadRequest {
   platform: 'instagram' | 'tiktok';
 }
 
-function createFallback(url: string, platform: 'instagram' | 'tiktok') {
-  return {
-    platform,
-    title: platform === 'instagram' ? 'Instagram Video' : 'TikTok Video',
-    thumbnail: '',
-    downloads: [
-      {
-        quality: 'Original',
-        url,
-      },
-    ],
-  };
-}
-
 async function safeGetInstagramVideo(url: string) {
   try {
     const apiUrl = `https://instagram-downloader-api1.p.rapidapi.com/get-media-info?url=${encodeURIComponent(url)}`;
@@ -30,20 +16,19 @@ async function safeGetInstagramVideo(url: string) {
         'X-RapidAPI-Host': 'instagram-downloader-api1.p.rapidapi.com',
       },
     });
-    if (!response.ok) throw new Error('Non-OK response');
+    if (!response.ok) return null;
     const data = await response.json();
-    if (!data.video_url && !data.url && !data.display_url) throw new Error('Missing download URL');
+    const direct = data.video_url || data.url || data.display_url || '';
+    if (!direct) return null;
     return {
-      platform: 'instagram',
+      platform: 'instagram' as const,
       title: data.title || 'Instagram Video',
       thumbnail: data.thumbnail || data.display_url || '',
-      downloads: [
-        { quality: 'HD (No Watermark)', url: data.video_url || data.url || '' },
-      ].filter((d) => d.url),
+      downloads: [{ quality: 'HD (No Watermark)', url: direct }],
     };
   } catch (error) {
-    console.error('Instagram provider fallback: ', error);
-    return createFallback(url, 'instagram');
+    console.error('Instagram provider error:', error);
+    return null;
   }
 }
 
@@ -57,12 +42,12 @@ async function safeGetTikTokVideo(url: string) {
         'X-RapidAPI-Host': 'tiktok-downloader-api1.p.rapidapi.com',
       },
     });
-    if (!response.ok) throw new Error('Non-OK response');
+    if (!response.ok) return null;
     const data = await response.json();
-    const direct = data.video_url || data.url || data.sd_url || '';
-    if (!direct) throw new Error('Missing download URL');
+    const direct = data.video_url || data.url || '';
+    if (!direct) return null;
     return {
-      platform: 'tiktok',
+      platform: 'tiktok' as const,
       title: data.title || 'TikTok Video',
       thumbnail: data.thumbnail || data.cover || '',
       downloads: [
@@ -71,8 +56,8 @@ async function safeGetTikTokVideo(url: string) {
       ].filter((d) => d.url),
     };
   } catch (error) {
-    console.error('TikTok provider fallback: ', error);
-    return createFallback(url, 'tiktok');
+    console.error('TikTok provider error:', error);
+    return null;
   }
 }
 
@@ -105,11 +90,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const videoData = platform === 'instagram' ? await safeGetInstagramVideo(url) : await safeGetTikTokVideo(url);
+    const videoData =
+      platform === 'instagram'
+        ? await safeGetInstagramVideo(url)
+        : await safeGetTikTokVideo(url);
 
-    if (!videoData || !videoData.downloads.length) {
+    if (!videoData || videoData.downloads.length === 0) {
       return NextResponse.json(
-        { error: 'Could not extract video information' },
+        {
+          error: 'Unable to extract a downloadable video. The provider may have failed. Please try again later.',
+        },
         { status: 400 }
       );
     }

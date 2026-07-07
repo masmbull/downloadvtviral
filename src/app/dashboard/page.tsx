@@ -50,6 +50,9 @@ export default function DashboardPage() {
     });
   };
 
+  const sanitizeFilename = (name: string) =>
+    name.replace(/[^a-zA-Z0-9\s\-_.]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
       <nav className="glass-card border-b border-border">
@@ -174,7 +177,9 @@ export default function DashboardPage() {
                             variant="outline"
                             disabled={isDownloading}
                             onClick={() => {
-                              const filename = `${item.title || 'video'}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
+                              const rawTitle = item.title || 'video';
+                              const sanitizedTitle = sanitizeFilename(rawTitle);
+                              const filename = `${sanitizedTitle}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
                               const iframe = document.createElement('iframe');
                               iframe.style.display = 'none';
                               iframe.src = `/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`;

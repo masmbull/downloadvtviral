@@ -8,9 +8,7 @@ async function resolveMediaUrl(initialUrl: string): Promise<string> {
   const visited = new Set<string>();
 
   for (let i = 0; i < maxRedirects; i++) {
-    if (visited.has(current)) {
-      break;
-    }
+    if (visited.has(current)) break;
     visited.add(current);
 
     const response = await fetch(current, {
@@ -77,12 +75,16 @@ export async function GET(request: NextRequest) {
 
     const contentType =
       response.headers.get('content-type') || 'video/mp4';
-    const contentDisposition =
-      response.headers.get('content-disposition') || 'attachment';
+
+    if (contentType.includes('text/html')) {
+      return NextResponse.json(
+        { error: 'The download link did not resolve to a media file.' },
+        { status: 400 }
+      );
+    }
+
     const contentLength = response.headers.get('content-length');
-
     const arrayBuffer = await response.arrayBuffer();
-
     const filename =
       request.nextUrl.searchParams.get('filename') || 'video.mp4';
 
@@ -90,7 +92,7 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+        'Content-Disposition': `attachment; filename="${filename.replace(/"/g, '')}"`,
         'Content-Length': contentLength || String(arrayBuffer.byteLength),
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         Pragma: 'no-cache',

@@ -18,6 +18,20 @@ interface VideoInfo {
   downloads: DownloadOption[];
 }
 
+function sanitizeFilename(name: string) {
+  return name.replace(/[^a-zA-Z0-9\s\-_.]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+function triggerDownload(downloadUrl: string, filename: string) {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = `/api/proxy/download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
+  document.body.appendChild(iframe);
+  setTimeout(() => {
+    document.body.removeChild(iframe);
+  }, 5000);
+}
+
 export function DownloadForm() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,14 +39,6 @@ export function DownloadForm() {
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const triggerDownload = (downloadUrl: string, filename: string) => {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = `/api/proxy/download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
-    document.body.appendChild(iframe);
-    setTimeout(() => document.body.removeChild(iframe), 5000);
-  };
 
   const detectPlatform = (url: string): 'instagram' | 'tiktok' | null => {
     if (url.includes('instagram.com') || url.includes('instagr.am')) return 'instagram';
@@ -75,10 +81,26 @@ export function DownloadForm() {
         throw new Error(data.error || 'Failed to fetch video');
       }
       setVideoInfo(data);
+      saveToHistory(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveToHistory = (data: VideoInfo) => {
+    try {
+      const history = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
+      const entry = {
+        id: Date.now().toString(),
+        ...data,
+        timestamp: Date.now(),
+      };
+      history.unshift(entry);
+      localStorage.setItem('downloadHistory', JSON.stringify(history.slice(0, 100)));
+    } catch {
+      // Ignore history errors
     }
   };
 
@@ -170,8 +192,12 @@ export function DownloadForm() {
                     className="w-full justify-between group hover:border-primary/50 transition-colors"
                     disabled={downloadingIndex === index}
                     onClick={() => {
-                      const filename = `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
+                      setDownloadingIndex(index);
+                      const rawTitle = videoInfo.title || 'video';
+                      const sanitizedTitle = sanitizeFilename(rawTitle);
+                      const filename = `${sanitizedTitle}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
                       triggerDownload(download.url, filename);
+                      setTimeout(() => setDownloadingIndex(null), 3000);
                     }}
                   >
                     <span>{download.quality}</span>
