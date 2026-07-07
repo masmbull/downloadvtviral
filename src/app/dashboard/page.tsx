@@ -6,6 +6,7 @@ import { Download, Film, TrendingUp, Trash2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { downloadFile } from '@/lib/download';
 
 interface HistoryItem {
   id: string;
@@ -164,15 +165,14 @@ export default function DashboardPage() {
                     </div>
                     <div className="hidden sm:flex gap-2">
                       {item.downloads.map((dl, idx) => (
-                        <a
+                        <Button
                           key={idx}
-                          href={`/api/media/download?url=${encodeURIComponent(dl.url)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted transition-colors"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => downloadFile(dl.url, `${item.title || 'video'}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`)}
                         >
                           {dl.quality}
-                        </a>
+                        </Button>
                       ))}
                     </div>
                   </div>

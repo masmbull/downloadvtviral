@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Film, Sparkles, Loader2 } from 'lucide-react';
+import { downloadFile } from '@/lib/download';
 
 interface DownloadOption {
   quality: string;
@@ -171,16 +172,15 @@ export function DownloadForm() {
                   Download Options:
                 </h3>
                 {videoInfo.downloads.map((download, index) => (
-                  <a
+                  <Button
                     key={index}
-                    href={`/api/media/download?url=${encodeURIComponent(download.url)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium hover:bg-muted hover:text-foreground transition-colors group"
+                    variant="outline"
+                    className="w-full justify-between group hover:border-primary/50 transition-colors"
+                    onClick={() => downloadFile(download.url, `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`)}
                   >
                     <span>{download.quality}</span>
                     <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </a>
+                  </Button>
                 ))}
               </div>
             </div>
