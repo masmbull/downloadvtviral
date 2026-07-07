@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Download, Film, Sparkles, Loader2, Plus, Image as ImageIcon, Crown } from 'lucide-react';
+import { Download, Film, Sparkles, Loader2, Plus, Image as ImageIcon, Crown, ExternalLink } from 'lucide-react';
 import { VisitorInfo } from '@/components/visitor-info';
 
 interface DownloadItem {
@@ -26,21 +26,14 @@ function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9\s\-_.]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-function triggerDownload(downloadUrl: string, filename: string, onStart?: () => void, onEnd?: () => void) {
-  if (onStart) onStart();
-
-  const params = new URLSearchParams({ url: downloadUrl, filename });
-  const a = document.createElement('a');
-  a.href = `/api/proxy/download?${params.toString()}`;
-  a.download = filename;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  setTimeout(() => {
-    if (onEnd) onEnd();
-  }, 2000);
+function triggerDownloadViaShortlink(downloadUrl: string, filename: string) {
+  // Navigate to shortlink redirect page for monetization (countdown)
+  const params = new URLSearchParams({
+    url: downloadUrl,
+    filename: filename,
+    delay: '5',
+  });
+  window.location.href = `/shortlink/redirect?${params.toString()}`;
 }
 
 export function DownloadForm() {
@@ -124,11 +117,19 @@ export function DownloadForm() {
     }
   };
 
-  const handleDownload = async (result: ResultEntry, download: DownloadItem) => {
+  const handleDownload = (result: ResultEntry, download: DownloadItem) => {
     const key = `${result.sourceUrl}-${download.url}`;
     setDownloading(key);
-    const filename = `${sanitizeFilename(result.title || 'video')}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.${result.type === 'images' ? 'jpg' : 'mp4'}`;
-    triggerDownload(download.url, filename, undefined, () => setDownloading(null));
+    const ext = result.type === 'images' ? 'jpg' : 'mp4';
+    const filename = `${sanitizeFilename(result.title || 'video')}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.${ext}`;
+    
+    // Navigate to shortlink redirect page for monetization
+    triggerDownloadViaShortlink(download.url, filename);
+    
+    // Reset downloading state after a moment (the page will navigate away)
+    setTimeout(() => {
+      setDownloading(null);
+    }, 2000);
   };
 
   return (
@@ -222,6 +223,10 @@ export function DownloadForm() {
                       <h3 className="text-lg font-medium">
                         {result.type === 'images' ? `Download Photos (${result.downloads.length})` : 'Download Options'}:
                       </h3>
+                      <span className="text-xs text-muted-foreground ml-auto flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" />
+                        Redirect with 5s countdown
+                      </span>
                     </div>
                     <div className="space-y-2">
                       {result.downloads.map((download, index) => (
@@ -247,7 +252,35 @@ export function DownloadForm() {
                         </div>
                       ))}
                     </div>
-                    <div className="mt-3">
+                      <div className="mt-4 flex flex-col gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="w-full gap-2"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/shortlink/create', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                downloadUrl: result.downloads[0]?.url || '',
+                                filename: `${sanitizeFilename(result.title || 'video')}-${result.downloads[0]?.quality?.replace(/\s+/g, '-').toLowerCase() || 'download'}.${result.type === 'images' ? 'jpg' : 'mp4'}`,
+                                platform: result.platform,
+                              }),
+                            });
+                            const data = await res.json();
+                            if (data.shortUrl) {
+                              await navigator.clipboard.writeText(data.shortUrl);
+                              alert('Shortlink copied to clipboard! Share this link with others.');
+                            }
+                          } catch {
+                            alert('Failed to create shortlink. Please try again.');
+                          }
+                        }}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Copy Shortlink to Share
+                      </Button>
                       <VisitorInfo />
                     </div>
                   </>
