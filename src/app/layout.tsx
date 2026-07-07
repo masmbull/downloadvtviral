@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { AdminAuthProvider } from "@/components/admin-auth-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -53,10 +54,12 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider defaultTheme="light" storageKey="downloadvtviral-theme">
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-          <SpeedInsights />
+          <AdminAuthProvider>
+            <Navbar />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            <SpeedInsights />
+          </AdminAuthProvider>
         </ThemeProvider>
       </body>
     </html>

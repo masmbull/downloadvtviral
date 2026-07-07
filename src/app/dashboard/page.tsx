@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { Download, Film, TrendingUp, Trash2, ArrowLeft } from 'lucide-react';
+import { Download, Film, TrendingUp, Trash2, ArrowLeft, Globe, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 interface HistoryItem {
@@ -20,38 +20,54 @@ export default function DashboardPage() {
   const [history, setHistory] = useState<HistoryItem[]>(() => {
     try {
       const stored = localStorage.getItem('downloadHistory');
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch {
-      // Ignore parse errors
-    }
+      if (stored) return JSON.parse(stored);
+    } catch {}
     return [];
   });
   const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
+  const [visitors, setVisitors] = useState<Array<{ ip: string; userAgent: string; timestamp: number }>>([]);
+  const [visitorCount, setVisitorCount] = useState(0);
 
   const clearHistory = () => {
     localStorage.removeItem('downloadHistory');
     setHistory([]);
   };
 
-  const platformCounts = useMemo(() => ({
-    instagram: history.filter(h => h.platform === 'instagram').length,
-    tiktok: history.filter(h => h.platform === 'tiktok').length,
-  }), [history]);
+  const platformCounts = useMemo(
+    () => ({
+      instagram: history.filter((h) => h.platform === 'instagram').length,
+      tiktok: history.filter((h) => h.platform === 'tiktok').length,
+    }),
+    [history]
+  );
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('en-US', {
+  const formatDate = (timestamp: number) =>
+    new Date(timestamp).toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
 
   const sanitizeFilename = (name: string) =>
     name.replace(/[^a-zA-Z0-9\s\-_.]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+
+  useEffect(() => {
+    fetch('/api/visitors/track', { method: 'POST' }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/visitors/track')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.visits) {
+          setVisitors(data.visits);
+          setVisitorCount(data.visits.length);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
@@ -116,6 +132,35 @@ export default function DashboardPage() {
           </Card>
         </div>
 
+        <Card className="border-border mb-12">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-primary" />
+              Visitor IPs
+              <span className="text-sm font-normal text-muted-foreground">({visitorCount} total)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {visitors.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No visitors tracked yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {visitors.map((visitor, idx) => (
+                  <div key={idx} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-mono">{visitor.ip}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(visitor.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {history.length > 0 && (
           <div className="flex justify-end mb-4">
             <Button
@@ -147,7 +192,7 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           ) : (
-            history.map(item => (
+            history.map((item) => (
               <Card key={item.id} className="border-border hover:border-primary/30 transition-colors">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
@@ -170,6 +215,7 @@ export default function DashboardPage() {
                       {item.downloads.map((dl, idx) => {
                         const dlId = `${item.id}-${idx}`;
                         const isDownloading = downloadingIds.includes(dlId);
+                        const ext = item.downloads.length > 1 && item.platform === 'instagram' ? 'jpg' : 'mp4';
                         return (
                           <Button
                             key={idx}
@@ -179,7 +225,7 @@ export default function DashboardPage() {
                             onClick={() => {
                               const rawTitle = item.title || 'video';
                               const sanitizedTitle = sanitizeFilename(rawTitle);
-                              const filename = `${sanitizedTitle}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
+                              const filename = `${sanitizedTitle}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.${ext}`;
                               const iframe = document.createElement('iframe');
                               iframe.style.display = 'none';
                               iframe.src = `/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`;

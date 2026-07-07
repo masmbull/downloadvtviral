@@ -4,19 +4,22 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Download, Film, Sparkles, Loader2 } from 'lucide-react';
+import { Download, Film, Sparkles, Loader2, Plus, Image as ImageIcon, Crown } from 'lucide-react';
 
-interface DownloadOption {
+interface DownloadItem {
   quality: string;
   url: string;
 }
 
-interface VideoInfo {
+interface MediaResult {
   platform: 'instagram' | 'tiktok';
   title: string;
   thumbnail: string;
-  downloads: DownloadOption[];
+  type: 'video' | 'images';
+  downloads: DownloadItem[];
 }
+
+type ResultEntry = MediaResult & { sourceUrl: string };
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9\s\-_.]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
@@ -33,55 +36,79 @@ function triggerDownload(downloadUrl: string, filename: string) {
 }
 
 export function DownloadForm() {
-  const [url, setUrl] = useState('');
+  const [urls, setUrls] = useState<string[]>(['']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
-  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [results, setResults] = useState<ResultEntry[]>([]);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const addUrl = () => {
+    if (urls.length < 3) {
+      setUrls([...urls, '']);
+    }
+  };
+
+  const updateUrl = (index: number, value: string) => {
+    const next = [...urls];
+    next[index] = value;
+    setUrls(next);
+  };
 
   const detectPlatform = (url: string): 'instagram' | 'tiktok' | null => {
+    if (!url) return null;
     if (url.includes('instagram.com') || url.includes('instagr.am')) return 'instagram';
     if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) return 'tiktok';
     return null;
   };
 
-  const handlePasteFromClipboard = async () => {
+  const handlePaste = async (index: number) => {
     try {
       const text = await navigator.clipboard.readText();
-      setUrl(text);
+      updateUrl(index, text);
       setError('');
     } catch {
-      setError('Could not access clipboard. Please paste manually.');
+      setError('Could not access clipboard');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setVideoInfo(null);
+    setResults([]);
 
-    const platform = detectPlatform(url);
-    if (!platform) {
-      setError('Please enter a valid Instagram or TikTok URL');
+    const filled = urls.filter((u) => detectPlatform(u));
+    const toProcess = filled.slice(0, 3);
+
+    if (toProcess.length === 0) {
+      setError('Paste at least one Instagram or TikTok URL');
+      return;
+    }
+
+    if (filled.length > 3) {
+      setError('Demo supports 3 links max. Purchase pro for unlimited batch.');
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, platform }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch video');
-      }
-      setVideoInfo(data);
-      saveToHistory(data);
+      const entries = await Promise.all(
+        toProcess.map(async (url) => {
+          const platform = detectPlatform(url)!;
+          const response = await fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, platform }),
+          });
+          const data = (await response.json()) as MediaResult;
+          if (!response.ok) {
+            return { ...data, error: true, sourceUrl: url } as any;
+          }
+          return { ...data, sourceUrl: url } as ResultEntry;
+        })
+      );
+      setResults(entries);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -89,51 +116,69 @@ export function DownloadForm() {
     }
   };
 
-  const saveToHistory = (data: VideoInfo) => {
-    try {
-      const history = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
-      const entry = {
-        id: Date.now().toString(),
-        ...data,
-        timestamp: Date.now(),
-      };
-      history.unshift(entry);
-      localStorage.setItem('downloadHistory', JSON.stringify(history.slice(0, 100)));
-    } catch {
-      // Ignore history errors
-    }
+  const handleDownload = async (
+    result: ResultEntry,
+    download: DownloadItem
+  ) => {
+    setDownloading(`${result.sourceUrl}-${download.url}`);
+    const filename = `${sanitizeFilename(result.title || 'video')}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.${result.type === 'images' ? 'jpg' : 'mp4'}`;
+    triggerDownload(download.url, filename);
+    setTimeout(() => setDownloading(null), 2000);
   };
 
   return (
     <Card className="w-full max-w-2xl shadow-2xl border-border/50 animate-scale-in">
       <CardContent className="pt-8 pb-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
             <label className="text-sm font-medium flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              Paste video link here
+              Paste video or post link here
             </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  ref={inputRef}
-                  type="text"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://www.instagram.com/... or https://www.tiktok.com/..."
-                  required
-                  className="pr-32"
-                />
+            <div className="flex flex-col gap-2">
+              {urls.map((url, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      ref={(el) => {
+                        inputRefs.current[idx] = el;
+                      }}
+                      value={url}
+                      onChange={(e) => updateUrl(idx, e.target.value)}
+                      placeholder={`Link ${idx + 1}: https://www.instagram.com/... or https://www.tiktok.com/...`}
+                      required={idx === 0}
+                      className="pr-32"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handlePaste(idx)}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 text-xs h-7"
+                    >
+                      Paste
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {urls.length < 3 && (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={handlePasteFromClipboard}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 text-xs h-7"
+                  onClick={addUrl}
+                  className="gap-2"
                 >
-                  Paste
+                  <Plus className="w-4 h-4" />
+                  Add link
                 </Button>
-              </div>
+              )}
+              {urls.length >= 3 && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Crown className="w-3 h-3" />
+                  <span>Demo limit reached. Purchase pro for unlimited batch downloads.</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -163,53 +208,77 @@ export function DownloadForm() {
           </Button>
         </form>
 
-        {videoInfo && (
-          <div className="mt-8 space-y-6 animate-slide-up">
-            <div className="border-t border-border pt-6">
-              <h2 className="text-2xl font-semibold mb-4">
-                {videoInfo.title || 'Video Found'}
-              </h2>
-
-              {videoInfo.thumbnail && (
-                <div className="mb-4 rounded-xl overflow-hidden aspect-video bg-muted">
-                  <img
-                    src={videoInfo.thumbnail}
-                    alt="Video thumbnail"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <h3 className="text-lg font-medium flex items-center gap-2">
-                  <Download className="w-5 h-5 text-primary" />
-                  Download Options:
-                </h3>
-                {videoInfo.downloads.map((download, index) => (
+        {results.length > 0 && (
+          <div className="mt-8 space-y-8 animate-slide-up">
+            {results.map((result, idx) => (
+              <div key={idx} className={`border-t border-border pt-6 ${idx > 0 ? 'mt-6' : ''}`} id={`batch-result-${idx}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-semibold">
+                    {(result as any).error ? 'Failed' : (result.title || 'Media Found')}
+                  </h2>
                   <Button
-                    key={index}
-                    variant="outline"
-                    className="w-full justify-between group hover:border-primary/50 transition-colors"
-                    disabled={downloadingIndex === index}
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
-                      setDownloadingIndex(index);
-                      const rawTitle = videoInfo.title || 'video';
-                      const sanitizedTitle = sanitizeFilename(rawTitle);
-                      const filename = `${sanitizedTitle}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
-                      triggerDownload(download.url, filename);
-                      setTimeout(() => setDownloadingIndex(null), 3000);
+                      setResults(results.filter((_, i) => i !== idx));
                     }}
                   >
-                    <span>{download.quality}</span>
-                    {downloadingIndex === index ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                    )}
+                    Dismiss
                   </Button>
-                ))}
+                </div>
+
+                {!(result as any).error && result.thumbnail && (
+                  <div className="mb-4 rounded-xl overflow-hidden aspect-video bg-muted">
+                    <img src={result.thumbnail} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+
+                {!(result as any).error && (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      {result.type === 'images' ? (
+                        <ImageIcon className="w-5 h-5 text-primary" />
+                      ) : (
+                        <Download className="w-5 h-5 text-primary" />
+                      )}
+                      <h3 className="text-lg font-medium">
+                        {result.type === 'images' ? `Download Photos (${result.downloads.length})` : 'Download Options'}:
+                      </h3>
+                    </div>
+                    <div className="space-y-2">
+                      {result.downloads.map((download, index) => (
+                        <Button
+                          key={index}
+                          variant="outline"
+                          className="w-full justify-between group hover:border-primary/50 transition-colors"
+                          disabled={downloading === `${result.sourceUrl}-${download.url}`}
+                          onClick={() => handleDownload(result, download)}
+                        >
+                          <span>{download.quality}</span>
+                          {downloading === `${result.sourceUrl}-${download.url}` ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                          )}
+                        </Button>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {results.length > idx + 1 && (
+                  <div className="mt-6">
+                    <Button
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => document.getElementById(`batch-result-${idx + 1}`)?.scrollIntoView({ behavior: 'smooth' })}
+                    >
+                      Download other video
+                    </Button>
+                  </div>
+                )}
               </div>
-            </div>
+            ))}
           </div>
         )}
       </CardContent>

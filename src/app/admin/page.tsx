@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Film, Settings, TrendingUp, Activity, Server, Clock, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useAdminAuth } from '@/components/admin-auth-provider';
 
 interface StatsData {
   totalRequests: number;
@@ -18,6 +20,8 @@ interface StatsData {
 }
 
 export default function AdminPage() {
+  const { isAuthenticated, logout } = useAdminAuth();
+  const router = useRouter();
   const [stats] = useState<StatsData>(() => ({
     totalRequests: 1482,
     successfulRequests: 1356,
@@ -31,12 +35,25 @@ export default function AdminPage() {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/admin/login');
+    }
+  }, [isAuthenticated, router]);
+
+  useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(interval);
   }, []);
 
   const successRate = useMemo(() => ((stats.successfulRequests / stats.totalRequests) * 100).toFixed(1), [stats.successfulRequests, stats.totalRequests]);
   const uptime = ((now - stats.lastReset) / 1000 / 60).toFixed(1);
+
+  if (!isAuthenticated) return null;
+
+  const handleLogout = () => {
+    logout();
+    router.push('/');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
@@ -53,6 +70,9 @@ export default function AdminPage() {
             </Link>
             <div className="flex items-center gap-2">
               <ThemeToggle />
+              <Button variant="ghost" size="sm" onClick={handleLogout}>
+                Logout
+              </Button>
               <Link href="/">
                 <Button variant="ghost" size="icon">
                   <ArrowLeft className="w-5 h-5" />
