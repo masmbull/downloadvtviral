@@ -4,7 +4,7 @@ Instagram & TikTok video downloader. Free, fast, and easy to use.
 
 ## Live
 
-- Production: https://downloadvtviral.vercel.app
+- Production: https://downloadvtviral.web.id
 
 ## Progress Checklist
 
