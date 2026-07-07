@@ -29,6 +29,7 @@ export default function DashboardPage() {
     }
     return [];
   });
+  const [downloadingIds, setDownloadingIds] = useState<string[]>([]);
 
   const clearHistory = () => {
     localStorage.removeItem('downloadHistory');
@@ -164,16 +165,28 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <div className="hidden sm:flex gap-2">
-                      {item.downloads.map((dl, idx) => (
-                        <Button
-                          key={idx}
-                          size="sm"
-                          variant="outline"
-                          onClick={() => downloadFile(dl.url, `${item.title || 'video'}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`)}
-                        >
-                          {dl.quality}
-                        </Button>
-                      ))}
+                      {item.downloads.map((dl, idx) => {
+                        const dlId = `${item.id}-${idx}`;
+                        const isDownloading = downloadingIds.includes(dlId);
+                        return (
+                          <Button
+                            key={idx}
+                            size="sm"
+                            variant="outline"
+                            disabled={isDownloading}
+                            onClick={async () => {
+                              setDownloadingIds(prev => [...prev, dlId]);
+                              try {
+                                await downloadFile(dl.url, `${item.title || 'video'}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`);
+                              } finally {
+                                setDownloadingIds(prev => prev.filter(id => id !== dlId));
+                              }
+                            }}
+                          >
+                            {isDownloading ? '...' : dl.quality}
+                          </Button>
+                        );
+                      })}
                     </div>
                   </div>
                 </CardContent>

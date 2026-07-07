@@ -24,6 +24,7 @@ export function DownloadForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
+  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const detectPlatform = (url: string): 'instagram' | 'tiktok' | null => {
@@ -176,10 +177,22 @@ export function DownloadForm() {
                     key={index}
                     variant="outline"
                     className="w-full justify-between group hover:border-primary/50 transition-colors"
-                    onClick={() => downloadFile(download.url, `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`)}
+                    disabled={downloadingIndex === index}
+                    onClick={async () => {
+                      setDownloadingIndex(index);
+                      try {
+                        await downloadFile(download.url, `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`);
+                      } finally {
+                        setDownloadingIndex(null);
+                      }
+                    }}
                   >
                     <span>{download.quality}</span>
-                    <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    {downloadingIndex === index ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                    )}
                   </Button>
                 ))}
               </div>
