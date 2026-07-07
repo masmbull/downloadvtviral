@@ -175,7 +175,7 @@ export default function DashboardPage() {
                             disabled={isDownloading}
                             onClick={() => {
                               const filename = `${item.title || 'video'}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
-                              window.location.href = `/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`;
+                              window.open(`/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`, '_blank');
                             }}
                           >
                             {isDownloading ? '...' : dl.quality}

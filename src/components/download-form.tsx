@@ -177,14 +177,9 @@ export function DownloadForm() {
                     variant="outline"
                     className="w-full justify-between group hover:border-primary/50 transition-colors"
                     disabled={downloadingIndex === index}
-                    onClick={async () => {
-                      setDownloadingIndex(index);
-                      try {
-                        const filename = `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
-                        window.location.href = `/api/proxy/download?url=${encodeURIComponent(download.url)}&filename=${encodeURIComponent(filename)}`;
-                      } finally {
-                        setDownloadingIndex(null);
-                      }
+                    onClick={() => {
+                      const filename = `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
+                      window.open(`/api/proxy/download?url=${encodeURIComponent(download.url)}&filename=${encodeURIComponent(filename)}`, '_blank');
                     }}
                   >
                     <span>{download.quality}</span>
