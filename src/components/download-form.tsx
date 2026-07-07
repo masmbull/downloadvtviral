@@ -13,7 +13,7 @@ interface DownloadItem {
 }
 
 interface MediaResult {
-  platform: 'instagram' | 'tiktok';
+  platform: 'instagram' | 'tiktok' | 'youtube' | 'doodstream';
   title: string;
   thumbnail: string;
   type: 'video' | 'images';
@@ -36,10 +36,7 @@ function triggerDownload(downloadUrl: string, filename: string, onStart?: () => 
   });
 
   const shortlinkWindow = window.open(`/api/shortlink/redirect?${params.toString()}`, '_blank');
-
-  if (shortlinkWindow) {
-    shortlinkWindow.focus();
-  }
+  if (shortlinkWindow) shortlinkWindow.focus();
 
   setTimeout(() => {
     if (onEnd) onEnd();
@@ -55,9 +52,7 @@ export function DownloadForm() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const addUrl = () => {
-    if (urls.length < 3) {
-      setUrls([...urls, '']);
-    }
+    if (urls.length < 3) setUrls([...urls, '']);
   };
 
   const updateUrl = (index: number, value: string) => {
@@ -94,7 +89,7 @@ export function DownloadForm() {
     const toProcess = filled.slice(0, 3);
 
     if (toProcess.length === 0) {
-      setError('Paste at least one Instagram or TikTok URL');
+      setError('Paste at least one Instagram, TikTok, YouTube, or Doodstream URL');
       return;
     }
 
@@ -129,10 +124,7 @@ export function DownloadForm() {
     }
   };
 
-  const handleDownload = async (
-    result: ResultEntry,
-    download: DownloadItem
-  ) => {
+  const handleDownload = async (result: ResultEntry, download: DownloadItem) => {
     const key = `${result.sourceUrl}-${download.url}`;
     setDownloading(key);
     const filename = `${sanitizeFilename(result.title || 'video')}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.${result.type === 'images' ? 'jpg' : 'mp4'}`;
@@ -144,49 +136,32 @@ export function DownloadForm() {
       <CardContent className="pt-8 pb-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-primary" />
-                Paste video or post link here
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Supported: YouTube, TikTok, Instagram, Doodstream
-              </p>
+            <label className="text-sm font-medium flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              Paste video or post link here
+            </label>
+            <p className="text-xs text-muted-foreground">Supported: YouTube, TikTok, Instagram, Doodstream</p>
             <div className="flex flex-col gap-2">
               {urls.map((url, idx) => (
                 <div key={idx} className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
-                      ref={(el) => {
-                        inputRefs.current[idx] = el;
-                      }}
+                      ref={(el) => { inputRefs.current[idx] = el; }}
                       value={url}
                       onChange={(e) => updateUrl(idx, e.target.value)}
                       placeholder={`Link ${idx + 1}: https://www.instagram.com/... or https://www.tiktok.com/...`}
                       required={idx === 0}
                       className="pr-32"
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handlePaste(idx)}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 text-xs h-7"
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={() => handlePaste(idx)} className="absolute right-1 top-1/2 -translate-y-1/2 text-xs h-7">
                       Paste
                     </Button>
                   </div>
                 </div>
               ))}
               {urls.length < 3 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addUrl}
-                  className="gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add link
+                <Button type="button" variant="outline" size="sm" onClick={addUrl} className="gap-2">
+                  <Plus className="w-4 h-4" /> Add link
                 </Button>
               )}
               {urls.length >= 3 && (
@@ -204,12 +179,7 @@ export function DownloadForm() {
             </div>
           )}
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full gap-2 gradient-primary hover:opacity-90 transition-opacity"
-            size="lg"
-          >
+          <Button type="submit" disabled={loading} className="w-full gap-2 gradient-primary hover:opacity-90 transition-opacity" size="lg">
             {loading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -229,16 +199,8 @@ export function DownloadForm() {
             {results.map((result, idx) => (
               <div key={idx} className={`border-t border-border pt-6 ${idx > 0 ? 'mt-6' : ''}`} id={`batch-result-${idx}`}>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-semibold">
-                    {(result as any).error ? 'Failed' : (result.title || 'Media Found')}
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setResults(results.filter((_, i) => i !== idx));
-                    }}
-                  >
+                  <h2 className="text-2xl font-semibold">{(result as any).error ? 'Failed' : (result.title || 'Media Found')}</h2>
+                  <Button variant="ghost" size="sm" onClick={() => setResults(results.filter((_, i) => i !== idx))}>
                     Dismiss
                   </Button>
                 </div>
@@ -249,7 +211,7 @@ export function DownloadForm() {
                   </div>
                 )}
 
-                {!(result as any).error && (
+                {!(result as any).error ? (
                   <>
                     <div className="flex items-center gap-2 mb-3">
                       {result.type === 'images' ? (
@@ -261,32 +223,47 @@ export function DownloadForm() {
                         {result.type === 'images' ? `Download Photos (${result.downloads.length})` : 'Download Options'}:
                       </h3>
                     </div>
-                     <div className="space-y-2">
-                       {result.downloads.map((download, index) => (
-                         <div key={index} className="space-y-1">
-                           <Button
-                             variant="outline"
-                             className="w-full justify-between group hover:border-primary/50 transition-colors"
-                             disabled={downloading === `${result.sourceUrl}-${download.url}`}
-                             onClick={() => handleDownload(result, download)}
-                           >
-                             <span>{download.quality}</span>
-                             {downloading === `${result.sourceUrl}-${download.url}` ? (
-                               <Loader2 className="w-5 h-5 animate-spin" />
-                             ) : (
-                               <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                             )}
-                           </Button>
-                           {downloading === `${result.sourceUrl}-${download.url}` && (
-                             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                               <div className="h-full bg-primary rounded-full animate-progress" />
-                             </div>
-                           )}
-                           <VisitorInfo />
-                         </div>
-                       ))}
-                     </div>
+                    <div className="space-y-2">
+                      {result.downloads.map((download, index) => (
+                        <div key={index} className="space-y-1">
+                          <Button
+                            variant="outline"
+                            className="w-full justify-between group hover:border-primary/50 transition-colors"
+                            disabled={downloading === `${result.sourceUrl}-${download.url}`}
+                            onClick={() => handleDownload(result, download)}
+                          >
+                            <span>{download.quality}</span>
+                            {downloading === `${result.sourceUrl}-${download.url}` ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            )}
+                          </Button>
+                          {downloading === `${result.sourceUrl}-${download.url}` && (
+                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full animate-progress" />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-3">
+                      <VisitorInfo />
+                    </div>
                   </>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">{(result as any).error || 'Failed to extract media'}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setResults(results.filter((_, i) => i !== idx));
+                      }}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
                 )}
 
                 {results.length > idx + 1 && (

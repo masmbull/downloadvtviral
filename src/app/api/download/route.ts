@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
     if (!videoData || videoData.downloads.length === 0) {
       return NextResponse.json(
         {
-          error: 'Unable to extract media. The post may be private or unsupported. Please try another link.',
+          error: 'Unable to extract media. The post may be private, region-locked, or unsupported. Please try another link or try again later.',
         },
         { status: 400 }
       );

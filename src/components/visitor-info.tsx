@@ -12,15 +12,25 @@ interface VisitorInfoData {
 
 export function VisitorInfo() {
   const [info, setInfo] = useState<VisitorInfoData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
     fetch('/api/visitor/info')
       .then((res) => res.json())
-      .then(setInfo)
-      .catch(() => {});
+      .then((data) => {
+        if (mounted) {
+          setInfo(data);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
   }, []);
 
-  if (!info) return null;
+  if (loading || !info) return null;
 
   return (
     <div className="text-xs text-muted-foreground space-y-1">
