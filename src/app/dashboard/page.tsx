@@ -217,24 +217,34 @@ export default function DashboardPage() {
                         const isDownloading = downloadingIds.includes(dlId);
                         const ext = item.downloads.length > 1 && item.platform === 'instagram' ? 'jpg' : 'mp4';
                         return (
-                          <Button
-                            key={idx}
-                            size="sm"
-                            variant="outline"
-                            disabled={isDownloading}
-                            onClick={() => {
-                              const rawTitle = item.title || 'video';
-                              const sanitizedTitle = sanitizeFilename(rawTitle);
-                              const filename = `${sanitizedTitle}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.${ext}`;
-                              const iframe = document.createElement('iframe');
-                              iframe.style.display = 'none';
-                              iframe.src = `/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`;
-                              document.body.appendChild(iframe);
-                              setTimeout(() => document.body.removeChild(iframe), 5000);
-                            }}
-                          >
-                            {isDownloading ? '...' : dl.quality}
-                          </Button>
+                          <div key={idx} className="flex flex-col gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={isDownloading}
+                              onClick={() => {
+                                const rawTitle = item.title || 'video';
+                                const sanitizedTitle = sanitizeFilename(rawTitle);
+                                const filename = `${sanitizedTitle}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.${ext}`;
+                                const iframe = document.createElement('iframe');
+                                iframe.style.display = 'none';
+                                iframe.src = `/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`;
+                                document.body.appendChild(iframe);
+                                setDownloadingIds(prev => [...prev, dlId]);
+                                setTimeout(() => {
+                                  document.body.removeChild(iframe);
+                                  setDownloadingIds(prev => prev.filter(id => id !== dlId));
+                                }, 5000);
+                              }}
+                            >
+                              {isDownloading ? 'Downloading...' : dl.quality}
+                            </Button>
+                            {isDownloading && (
+                              <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-primary rounded-full animate-progress" />
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>

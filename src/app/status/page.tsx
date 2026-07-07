@@ -5,22 +5,77 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
 
+async function runChecks() {
+  const checks = {
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    services: {
+      api: { status: 'operational' as 'operational' | 'degraded' | 'down' | 'checking', latency: 0 },
+      providers: {
+        instagram: { status: 'checking' as 'operational' | 'degraded' | 'down' | 'checking', latency: 0 },
+        tiktok: { status: 'checking' as 'operational' | 'degraded' | 'down' | 'checking', latency: 0 },
+      },
+    },
+    uptime: 0,
+  };
+
+  const apiStart = Date.now();
+  try {
+    const apiPromise = fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://downloadvtviral.web.id'}/api/download`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://www.tiktok.com/@teatrikaf/video/7647187848557490', platform: 'tiktok' }),
+    });
+    const apiResponse = await apiPromise;
+    checks.services.api.latency = Date.now() - apiStart;
+    checks.services.api.status = apiResponse.ok ? 'operational' : 'degraded';
+  } catch {
+    checks.services.api.status = 'down';
+    checks.services.api.latency = Date.now() - apiStart;
+  }
+
+  const igStart = Date.now();
+  try {
+    const igPromise = fetch(`https://instagram-downloader-api1.p.rapidapi.com/get-media-info?url=${encodeURIComponent('https://www.instagram.com/p/ABC123/')}`, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
+        'X-RapidAPI-Host': 'instagram-downloader-api1.p.rapidapi.com',
+      },
+    });
+    const igResponse = await igPromise;
+    checks.services.providers.instagram.latency = Date.now() - igStart;
+    checks.services.providers.instagram.status = igResponse.ok ? 'operational' : 'degraded';
+  } catch {
+    checks.services.providers.instagram.status = 'down';
+    checks.services.providers.instagram.latency = Date.now() - igStart;
+  }
+
+  const ttStart = Date.now();
+  try {
+    const ttPromise = fetch(`https://tiktok-downloader-api1.p.rapidapi.com/get-video-info?url=${encodeURIComponent('https://www.tiktok.com/@teatrikaf/video/7647187848557490')}`, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
+        'X-RapidAPI-Host': 'tiktok-downloader-api1.p.rapidapi.com',
+      },
+    });
+    const ttResponse = await ttPromise;
+    checks.services.providers.tiktok.latency = Date.now() - ttStart;
+    checks.services.providers.tiktok.status = ttResponse.ok ? 'operational' : 'degraded';
+  } catch {
+    checks.services.providers.tiktok.status = 'down';
+    checks.services.providers.tiktok.latency = Date.now() - ttStart;
+  }
+
+  return checks;
+}
+
 export const metadata: Metadata = {
   title: 'Status - DownloadVTViral',
   description: 'Live API and service status for DownloadVTViral',
   robots: 'noindex, nofollow',
 };
-
-async function getStatus() {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-  try {
-    const res = await fetch(`${baseUrl}/api/status/check`, { next: { revalidate: 30 } });
-    if (!res.ok) throw new Error('failed');
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
 
 const serviceLabel: Record<string, string> = {
   operational: 'Operational',
@@ -37,7 +92,7 @@ const statusColor: Record<string, string> = {
 };
 
 export default async function StatusPage() {
-  const data = await getStatus();
+  const data = await runChecks();
   const updated = data?.timestamp ? new Date(data.timestamp).toLocaleString() : 'Unknown';
 
   return (
@@ -74,81 +129,69 @@ export default async function StatusPage() {
           </p>
         </div>
 
-        {!data && (
+        <div className="space-y-6">
           <Card className="border-border">
-            <CardContent className="py-12 text-center">
-              <Server className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Status Unavailable</h3>
-              <p className="text-muted-foreground">Unable to fetch live status. Please try again later.</p>
+            <CardHeader>
+              <CardTitle>Core API</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Download API</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[data.services.api.status] || statusColor.checking}`}>
+                  {serviceLabel[data.services.api.status] || data.services.api.status}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Latency</span>
+                <span>{data.services.api.latency}ms</span>
+              </div>
             </CardContent>
           </Card>
-        )}
 
-        {data && (
-          <div className="space-y-6">
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>Core API</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">Download API</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[data.services.api.status] || statusColor.checking}`}>
-                    {serviceLabel[data.services.api.status] || data.services.api.status}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>Latency</span>
-                  <span>{data.services.api.latency}ms</span>
-                </div>
-              </CardContent>
-            </Card>
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle>Providers</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-medium">Instagram</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[data.services.providers.instagram.status] || statusColor.checking}`}>
+                  {serviceLabel[data.services.providers.instagram.status] || data.services.providers.instagram.status}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Latency</span>
+                <span>{data.services.providers.instagram.latency || '-'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">TikTok</span>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[data.services.providers.tiktok.status] || statusColor.checking}`}>
+                  {serviceLabel[data.services.providers.tiktok.status] || data.services.providers.tiktok.status}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>Latency</span>
+                <span>{data.services.providers.tiktok.latency || '-'}</span>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>Providers</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">Instagram</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[data.services.providers.instagram.status] || statusColor.checking}`}>
-                    {serviceLabel[data.services.providers.instagram.status] || data.services.providers.instagram.status}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>Latency</span>
-                  <span>{data.services.providers.instagram.latency || '-'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">TikTok</span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[data.services.providers.tiktok.status] || statusColor.checking}`}>
-                    {serviceLabel[data.services.providers.tiktok.status] || data.services.providers.tiktok.status}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <span>Latency</span>
-                  <span>{data.services.providers.tiktok.latency || '-'}</span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border">
-              <CardHeader>
-                <CardTitle>System</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Environment</span>
-                  <span className="font-medium">{data.environment}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Updated</span>
-                  <span className="font-medium">{updated}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle>System</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Environment</span>
+                <span className="font-medium">{data.environment}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Updated</span>
+                <span className="font-medium">{updated}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   );

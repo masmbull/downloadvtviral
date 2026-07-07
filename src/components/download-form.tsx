@@ -25,12 +25,14 @@ function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9\s\-_.]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-function triggerDownload(downloadUrl: string, filename: string) {
+function triggerDownload(downloadUrl: string, filename: string, onStart?: () => void, onEnd?: () => void) {
+  if (onStart) onStart();
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
   iframe.src = `/api/proxy/download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
   document.body.appendChild(iframe);
   setTimeout(() => {
+    if (onEnd) onEnd();
     document.body.removeChild(iframe);
   }, 5000);
 }
@@ -120,10 +122,10 @@ export function DownloadForm() {
     result: ResultEntry,
     download: DownloadItem
   ) => {
-    setDownloading(`${result.sourceUrl}-${download.url}`);
+    const key = `${result.sourceUrl}-${download.url}`;
+    setDownloading(key);
     const filename = `${sanitizeFilename(result.title || 'video')}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.${result.type === 'images' ? 'jpg' : 'mp4'}`;
-    triggerDownload(download.url, filename);
-    setTimeout(() => setDownloading(null), 2000);
+    triggerDownload(download.url, filename, undefined, () => setDownloading(null));
   };
 
   return (
@@ -247,20 +249,26 @@ export function DownloadForm() {
                     </div>
                     <div className="space-y-2">
                       {result.downloads.map((download, index) => (
-                        <Button
-                          key={index}
-                          variant="outline"
-                          className="w-full justify-between group hover:border-primary/50 transition-colors"
-                          disabled={downloading === `${result.sourceUrl}-${download.url}`}
-                          onClick={() => handleDownload(result, download)}
-                        >
-                          <span>{download.quality}</span>
-                          {downloading === `${result.sourceUrl}-${download.url}` ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                        <div key={index} className="space-y-1">
+                          <Button
+                            variant="outline"
+                            className="w-full justify-between group hover:border-primary/50 transition-colors"
+                            disabled={downloading === `${result.sourceUrl}-${download.url}`}
+                            onClick={() => handleDownload(result, download)}
+                          >
+                            <span>{download.quality}</span>
+                            {downloading === `${result.sourceUrl}-${download.url}` ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                            )}
+                          </Button>
+                          {downloading === `${result.sourceUrl}-${download.url}` && (
+                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full animate-progress" />
+                            </div>
                           )}
-                        </Button>
+                        </div>
                       ))}
                     </div>
                   </>

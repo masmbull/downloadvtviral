@@ -111,6 +111,20 @@ async function safeGetTikTokVideo(url: string): Promise<MediaResult | null> {
         };
       },
     },
+    {
+      host: 'tiktok-video-downloader-api.p.rapidapi.com',
+      path: '/get-video',
+      transform: (data: any) => {
+        const direct = data.video_url || data.url || data.play_url || data.sd_url || '';
+        return {
+          title: data.title || data.desc || 'TikTok Video',
+          thumbnail: data.thumbnail || data.cover || data.origin_cover || '',
+          downloads: direct
+            ? [{ quality: 'HD (No Watermark)', url: direct }]
+            : [],
+        };
+      },
+    },
   ];
 
   for (const provider of providers) {
