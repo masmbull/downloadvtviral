@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Film, Sparkles, Loader2 } from 'lucide-react';
-import { downloadFile } from '@/lib/download';
 
 interface DownloadOption {
   quality: string;
@@ -181,7 +180,8 @@ export function DownloadForm() {
                     onClick={async () => {
                       setDownloadingIndex(index);
                       try {
-                        await downloadFile(download.url, `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`);
+                        const filename = `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
+                        window.location.href = `/api/proxy/download?url=${encodeURIComponent(download.url)}&filename=${encodeURIComponent(filename)}`;
                       } finally {
                         setDownloadingIndex(null);
                       }

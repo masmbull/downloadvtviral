@@ -6,7 +6,6 @@ import { Download, Film, TrendingUp, Trash2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { downloadFile } from '@/lib/download';
 
 interface HistoryItem {
   id: string;
@@ -174,13 +173,9 @@ export default function DashboardPage() {
                             size="sm"
                             variant="outline"
                             disabled={isDownloading}
-                            onClick={async () => {
-                              setDownloadingIds(prev => [...prev, dlId]);
-                              try {
-                                await downloadFile(dl.url, `${item.title || 'video'}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`);
-                              } finally {
-                                setDownloadingIds(prev => prev.filter(id => id !== dlId));
-                              }
+                            onClick={() => {
+                              const filename = `${item.title || 'video'}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
+                              window.location.href = `/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`;
                             }}
                           >
                             {isDownloading ? '...' : dl.quality}
