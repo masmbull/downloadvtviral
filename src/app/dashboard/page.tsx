@@ -164,14 +164,15 @@ export default function DashboardPage() {
                     </div>
                     <div className="hidden sm:flex gap-2">
                       {item.downloads.map((dl, idx) => (
-                        <Button
+                        <a
                           key={idx}
-                          size="sm"
-                          variant="outline"
-                          onClick={() => window.open(dl.url, '_blank')}
+                          href={`/api/media/download?url=${encodeURIComponent(dl.url)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex h-9 items-center justify-center rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-muted transition-colors"
                         >
                           {dl.quality}
-                        </Button>
+                        </a>
                       ))}
                     </div>
                   </div>

@@ -148,7 +148,7 @@ export function DownloadForm() {
           </Button>
         </form>
 
-        {videoInfo && (
+                {videoInfo && (
           <div className="mt-8 space-y-6 animate-slide-up">
             <div className="border-t border-border pt-6">
               <h2 className="text-2xl font-semibold mb-4">
@@ -171,15 +171,16 @@ export function DownloadForm() {
                   Download Options:
                 </h3>
                 {videoInfo.downloads.map((download, index) => (
-                  <Button
+                  <a
                     key={index}
-                    variant="outline"
-                    className="w-full justify-between group hover:border-primary/50 transition-colors"
-                    onClick={() => window.open(download.url, '_blank')}
+                    href={`/api/media/download?url=${encodeURIComponent(download.url)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium hover:bg-muted hover:text-foreground transition-colors group"
                   >
                     <span>{download.quality}</span>
                     <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  </Button>
+                  </a>
                 ))}
               </div>
             </div>
