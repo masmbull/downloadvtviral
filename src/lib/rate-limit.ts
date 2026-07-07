@@ -33,17 +33,29 @@ export function rateLimit(request: NextRequest): boolean {
 export function validateUrl(url: string, platform: string): boolean {
   try {
     const urlObj = new URL(url);
-    
+
     if (platform === 'instagram') {
-      return urlObj.hostname.includes('instagram.com') || 
+      return urlObj.hostname.includes('instagram.com') ||
              urlObj.hostname.includes('instagr.am');
     }
-    
+
     if (platform === 'tiktok') {
-      return urlObj.hostname.includes('tiktok.com') || 
+      return urlObj.hostname.includes('tiktok.com') ||
              urlObj.hostname.includes('vm.tiktok.com');
     }
-    
+
+    if (platform === 'youtube') {
+      return urlObj.hostname.includes('youtube.com') ||
+             urlObj.hostname.includes('youtu.be') ||
+             urlObj.hostname.includes('youtube-nocookie.com');
+    }
+
+    if (platform === 'doodstream') {
+      return urlObj.hostname.includes('doodstream.com') ||
+             urlObj.hostname.includes('dood.to') ||
+             urlObj.hostname.includes('doodly.com');
+    }
+
     return false;
   } catch {
     return false;

@@ -3,7 +3,7 @@ import { rateLimit, validateUrl, sanitizeInput } from '@/lib/rate-limit';
 
 interface DownloadRequest {
   url: string;
-  platform: 'instagram' | 'tiktok';
+  platform: 'instagram' | 'tiktok' | 'youtube' | 'doodstream';
 }
 
 type MediaType = 'video' | 'images';
@@ -14,7 +14,7 @@ interface DownloadItem {
 }
 
 interface MediaResult {
-  platform: 'instagram' | 'tiktok';
+  platform: 'instagram' | 'tiktok' | 'youtube' | 'doodstream';
   title: string;
   thumbnail: string;
   type: MediaType;
@@ -34,7 +34,7 @@ async function safeGetInstagramMedia(url: string): Promise<MediaResult | null> {
     if (!response.ok) return null;
 
     const data = await response.json();
-    
+
     const imageUrls: string[] = [];
     if (Array.isArray(data.display_resources)) {
       imageUrls.push(...data.display_resources.map((r: any) => r.src || r.url).filter(Boolean));
@@ -160,6 +160,69 @@ async function safeGetTikTokVideo(url: string): Promise<MediaResult | null> {
   return null;
 }
 
+async function safeGetYouTubeVideo(url: string): Promise<MediaResult | null> {
+  try {
+    const apiUrl = `https://youtube-downloader-api.p.rapidapi.com/get-video-info?url=${encodeURIComponent(url)}`;
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
+        'X-RapidAPI-Host': 'youtube-downloader-api.p.rapidapi.com',
+      },
+    });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const direct = data.video_url || data.url || data.download_url || '';
+    if (!direct) return null;
+
+    return {
+      platform: 'youtube',
+      title: data.title || 'YouTube Video',
+      thumbnail: data.thumbnail || data.thumbnail_url || '',
+      type: 'video',
+      downloads: [
+        { quality: 'HD', url: data.video_url || data.url || '' },
+        { quality: 'SD', url: data.sd_url || '' },
+      ].filter((d: any) => d.url),
+    };
+  } catch (error) {
+    console.error('YouTube provider error:', error);
+    return null;
+  }
+}
+
+async function safeGetDoodstreamVideo(url: string): Promise<MediaResult | null> {
+  try {
+    const apiUrl = `https://doodstream-downloader.p.rapidapi.com/get-video?url=${encodeURIComponent(url)}`;
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
+        'X-RapidAPI-Host': 'doodstream-downloader.p.rapidapi.com',
+      },
+    });
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const direct = data.video_url || data.url || data.download_url || '';
+    if (!direct) return null;
+
+    return {
+      platform: 'doodstream',
+      title: data.title || 'Doodstream Video',
+      thumbnail: data.thumbnail || data.thumbnail_url || '',
+      type: 'video',
+      downloads: [
+        { quality: 'HD (No Watermark)', url: direct },
+      ],
+    };
+  } catch (error) {
+    console.error('Doodstream provider error:', error);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!rateLimit(request)) {
@@ -173,7 +236,6 @@ export async function POST(request: NextRequest) {
     const { url } = body;
 
     const sanitizedUrl = sanitizeInput(url || '');
-    const platform = sanitizedUrl.includes('tiktok.com') || sanitizedUrl.includes('vm.tiktok.com') ? 'tiktok' : 'instagram';
 
     if (!sanitizedUrl) {
       return NextResponse.json(
@@ -182,17 +244,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!validateUrl(sanitizedUrl, platform)) {
+    let platform: DownloadRequest['platform'] = 'instagram';
+    if (sanitizedUrl.includes('youtube.com') || sanitizedUrl.includes('youtu.be')) {
+      platform = 'youtube';
+    } else if (sanitizedUrl.includes('doodstream.com') || sanitizedUrl.includes('dood.to')) {
+      platform = 'doodstream';
+    } else if (sanitizedUrl.includes('tiktok.com') || sanitizedUrl.includes('vm.tiktok.com')) {
+      platform = 'tiktok';
+    } else if (sanitizedUrl.includes('instagram.com') || sanitizedUrl.includes('instagr.am')) {
+      platform = 'instagram';
+    } else {
       return NextResponse.json(
-        { error: 'Invalid URL' },
+        { error: 'Unsupported platform. Please use Instagram, TikTok, YouTube, or Doodstream links.' },
         { status: 400 }
       );
     }
 
-    const videoData =
-      platform === 'instagram'
-        ? await safeGetInstagramMedia(sanitizedUrl)
-        : await safeGetTikTokVideo(sanitizedUrl);
+    if (!validateUrl(sanitizedUrl, platform)) {
+      return NextResponse.json(
+        { error: 'Invalid URL for the specified platform' },
+        { status: 400 }
+      );
+    }
+
+    let videoData: MediaResult | null = null;
+    if (platform === 'instagram') {
+      videoData = await safeGetInstagramMedia(sanitizedUrl);
+    } else if (platform === 'tiktok') {
+      videoData = await safeGetTikTokVideo(sanitizedUrl);
+    } else if (platform === 'youtube') {
+      videoData = await safeGetYouTubeVideo(sanitizedUrl);
+    } else if (platform === 'doodstream') {
+      videoData = await safeGetDoodstreamVideo(sanitizedUrl);
+    }
 
     if (!videoData || videoData.downloads.length === 0) {
       return NextResponse.json(

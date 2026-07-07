@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Film, Sparkles, Loader2, Plus, Image as ImageIcon, Crown } from 'lucide-react';
+import { VisitorInfo } from '@/components/visitor-info';
 
 interface DownloadItem {
   quality: string;
@@ -27,13 +28,21 @@ function sanitizeFilename(name: string) {
 
 function triggerDownload(downloadUrl: string, filename: string, onStart?: () => void, onEnd?: () => void) {
   if (onStart) onStart();
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
-  iframe.src = `/api/proxy/download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
-  document.body.appendChild(iframe);
+
+  const params = new URLSearchParams({
+    url: downloadUrl,
+    filename,
+    delay: '5'
+  });
+
+  const shortlinkWindow = window.open(`/api/shortlink/redirect?${params.toString()}`, '_blank');
+
+  if (shortlinkWindow) {
+    shortlinkWindow.focus();
+  }
+
   setTimeout(() => {
     if (onEnd) onEnd();
-    document.body.removeChild(iframe);
   }, 5000);
 }
 
@@ -57,10 +66,12 @@ export function DownloadForm() {
     setUrls(next);
   };
 
-  const detectPlatform = (url: string): 'instagram' | 'tiktok' | null => {
+  const detectPlatform = (url: string): 'instagram' | 'tiktok' | 'youtube' | 'doodstream' | null => {
     if (!url) return null;
     if (url.includes('instagram.com') || url.includes('instagr.am')) return 'instagram';
     if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) return 'tiktok';
+    if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+    if (url.includes('doodstream.com') || url.includes('dood.to')) return 'doodstream';
     return null;
   };
 
@@ -133,10 +144,13 @@ export function DownloadForm() {
       <CardContent className="pt-8 pb-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-3">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              Paste video or post link here
-            </label>
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Paste video or post link here
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Supported: YouTube, TikTok, Instagram, Doodstream
+              </p>
             <div className="flex flex-col gap-2">
               {urls.map((url, idx) => (
                 <div key={idx} className="flex gap-2">
@@ -247,30 +261,31 @@ export function DownloadForm() {
                         {result.type === 'images' ? `Download Photos (${result.downloads.length})` : 'Download Options'}:
                       </h3>
                     </div>
-                    <div className="space-y-2">
-                      {result.downloads.map((download, index) => (
-                        <div key={index} className="space-y-1">
-                          <Button
-                            variant="outline"
-                            className="w-full justify-between group hover:border-primary/50 transition-colors"
-                            disabled={downloading === `${result.sourceUrl}-${download.url}`}
-                            onClick={() => handleDownload(result, download)}
-                          >
-                            <span>{download.quality}</span>
-                            {downloading === `${result.sourceUrl}-${download.url}` ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                              <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                            )}
-                          </Button>
-                          {downloading === `${result.sourceUrl}-${download.url}` && (
-                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-primary rounded-full animate-progress" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                     <div className="space-y-2">
+                       {result.downloads.map((download, index) => (
+                         <div key={index} className="space-y-1">
+                           <Button
+                             variant="outline"
+                             className="w-full justify-between group hover:border-primary/50 transition-colors"
+                             disabled={downloading === `${result.sourceUrl}-${download.url}`}
+                             onClick={() => handleDownload(result, download)}
+                           >
+                             <span>{download.quality}</span>
+                             {downloading === `${result.sourceUrl}-${download.url}` ? (
+                               <Loader2 className="w-5 h-5 animate-spin" />
+                             ) : (
+                               <Download className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                             )}
+                           </Button>
+                           {downloading === `${result.sourceUrl}-${download.url}` && (
+                             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                               <div className="h-full bg-primary rounded-full animate-progress" />
+                             </div>
+                           )}
+                           <VisitorInfo />
+                         </div>
+                       ))}
+                     </div>
                   </>
                 )}
 
