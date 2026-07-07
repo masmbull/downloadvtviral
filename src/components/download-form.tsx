@@ -26,6 +26,14 @@ export function DownloadForm() {
   const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const triggerDownload = (downloadUrl: string, filename: string) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = `/api/proxy/download?url=${encodeURIComponent(downloadUrl)}&filename=${encodeURIComponent(filename)}`;
+    document.body.appendChild(iframe);
+    setTimeout(() => document.body.removeChild(iframe), 5000);
+  };
+
   const detectPlatform = (url: string): 'instagram' | 'tiktok' | null => {
     if (url.includes('instagram.com') || url.includes('instagr.am')) return 'instagram';
     if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) return 'tiktok';
@@ -67,26 +75,10 @@ export function DownloadForm() {
         throw new Error(data.error || 'Failed to fetch video');
       }
       setVideoInfo(data);
-      saveToHistory(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const saveToHistory = (data: VideoInfo) => {
-    try {
-      const history = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
-      const entry = {
-        id: Date.now().toString(),
-        ...data,
-        timestamp: Date.now(),
-      };
-      history.unshift(entry);
-      localStorage.setItem('downloadHistory', JSON.stringify(history.slice(0, 100)));
-    } catch {
-      // Ignore history errors
     }
   };
 
@@ -149,7 +141,7 @@ export function DownloadForm() {
           </Button>
         </form>
 
-                {videoInfo && (
+        {videoInfo && (
           <div className="mt-8 space-y-6 animate-slide-up">
             <div className="border-t border-border pt-6">
               <h2 className="text-2xl font-semibold mb-4">
@@ -179,7 +171,7 @@ export function DownloadForm() {
                     disabled={downloadingIndex === index}
                     onClick={() => {
                       const filename = `${videoInfo.title || 'video'}-${download.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
-                      window.open(`/api/proxy/download?url=${encodeURIComponent(download.url)}&filename=${encodeURIComponent(filename)}`, '_blank');
+                      triggerDownload(download.url, filename);
                     }}
                   >
                     <span>{download.quality}</span>

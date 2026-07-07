@@ -175,7 +175,11 @@ export default function DashboardPage() {
                             disabled={isDownloading}
                             onClick={() => {
                               const filename = `${item.title || 'video'}-${dl.quality.replace(/\s+/g, '-').toLowerCase()}.mp4`;
-                              window.open(`/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`, '_blank');
+                              const iframe = document.createElement('iframe');
+                              iframe.style.display = 'none';
+                              iframe.src = `/api/proxy/download?url=${encodeURIComponent(dl.url)}&filename=${encodeURIComponent(filename)}`;
+                              document.body.appendChild(iframe);
+                              setTimeout(() => document.body.removeChild(iframe), 5000);
                             }}
                           >
                             {isDownloading ? '...' : dl.quality}
