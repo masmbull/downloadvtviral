@@ -6,6 +6,76 @@ interface DownloadRequest {
   platform: 'instagram' | 'tiktok';
 }
 
+function createFallback(url: string, platform: 'instagram' | 'tiktok') {
+  return {
+    platform,
+    title: platform === 'instagram' ? 'Instagram Video' : 'TikTok Video',
+    thumbnail: '',
+    downloads: [
+      {
+        quality: 'Original',
+        url,
+      },
+    ],
+  };
+}
+
+async function safeGetInstagramVideo(url: string) {
+  try {
+    const apiUrl = `https://instagram-downloader-api1.p.rapidapi.com/get-media-info?url=${encodeURIComponent(url)}`;
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
+        'X-RapidAPI-Host': 'instagram-downloader-api1.p.rapidapi.com',
+      },
+    });
+    if (!response.ok) throw new Error('Non-OK response');
+    const data = await response.json();
+    if (!data.video_url && !data.url && !data.display_url) throw new Error('Missing download URL');
+    return {
+      platform: 'instagram',
+      title: data.title || 'Instagram Video',
+      thumbnail: data.thumbnail || data.display_url || '',
+      downloads: [
+        { quality: 'HD (No Watermark)', url: data.video_url || data.url || '' },
+      ].filter((d) => d.url),
+    };
+  } catch (error) {
+    console.error('Instagram provider fallback: ', error);
+    return createFallback(url, 'instagram');
+  }
+}
+
+async function safeGetTikTokVideo(url: string) {
+  try {
+    const apiUrl = `https://tiktok-downloader-api1.p.rapidapi.com/get-video-info?url=${encodeURIComponent(url)}`;
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
+        'X-RapidAPI-Host': 'tiktok-downloader-api1.p.rapidapi.com',
+      },
+    });
+    if (!response.ok) throw new Error('Non-OK response');
+    const data = await response.json();
+    const direct = data.video_url || data.url || data.sd_url || '';
+    if (!direct) throw new Error('Missing download URL');
+    return {
+      platform: 'tiktok',
+      title: data.title || 'TikTok Video',
+      thumbnail: data.thumbnail || data.cover || '',
+      downloads: [
+        { quality: 'HD (No Watermark)', url: data.video_url || data.url || '' },
+        { quality: 'SD', url: data.sd_url || '' },
+      ].filter((d) => d.url),
+    };
+  } catch (error) {
+    console.error('TikTok provider fallback: ', error);
+    return createFallback(url, 'tiktok');
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!rateLimit(request)) {
@@ -35,20 +105,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let videoData: {
-      platform: string;
-      title: string;
-      thumbnail: string;
-      downloads: Array<{ quality: string; url: string }>;
-    } | null = null;
+    const videoData = platform === 'instagram' ? await safeGetInstagramVideo(url) : await safeGetTikTokVideo(url);
 
-    if (platform === 'instagram') {
-      videoData = await getInstagramVideo(url);
-    } else if (platform === 'tiktok') {
-      videoData = await getTikTokVideo(url);
-    }
-
-    if (!videoData) {
+    if (!videoData || !videoData.downloads.length) {
       return NextResponse.json(
         { error: 'Could not extract video information' },
         { status: 400 }
@@ -62,92 +121,6 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to process video. Please try again.' },
       { status: 500 }
     );
-  }
-}
-
-async function getInstagramVideo(url: string): Promise<{
-  platform: string;
-  title: string;
-  thumbnail: string;
-  downloads: Array<{ quality: string; url: string }>;
-}> {
-  try {
-    // Using a free Instagram API service
-    const apiUrl = `https://instagram-downloader-api1.p.rapidapi.com/get-media-info?url=${encodeURIComponent(url)}`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
-        'X-RapidAPI-Host': 'instagram-downloader-api1.p.rapidapi.com',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch Instagram video');
-    }
-
-    const data = await response.json();
-    
-    return {
-      platform: 'instagram',
-      title: data.title || 'Instagram Video',
-      thumbnail: data.thumbnail || data.display_url || '',
-      downloads: [
-        {
-          quality: 'HD (No Watermark)',
-          url: data.video_url || data.url || '',
-        },
-      ],
-    };
-  } catch (error) {
-    console.error('Instagram error:', error);
-    throw error;
-  }
-}
-
-async function getTikTokVideo(url: string): Promise<{
-  platform: string;
-  title: string;
-  thumbnail: string;
-  downloads: Array<{ quality: string; url: string }>;
-}> {
-  try {
-    // Using a free TikTok API service
-    const apiUrl = `https://tiktok-downloader-api1.p.rapidapi.com/get-video-info?url=${encodeURIComponent(url)}`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY || '',
-        'X-RapidAPI-Host': 'tiktok-downloader-api1.p.rapidapi.com',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch TikTok video');
-    }
-
-    const data = await response.json();
-    
-    return {
-      platform: 'tiktok',
-      title: data.title || 'TikTok Video',
-      thumbnail: data.thumbnail || data.cover || '',
-      downloads: [
-        {
-          quality: 'HD (No Watermark)',
-          url: data.video_url || data.url || '',
-        },
-        {
-          quality: 'SD',
-          url: data.sd_url || data.url || '',
-        },
-      ].filter(d => d.url),
-    };
-  } catch (error) {
-    console.error('TikTok error:', error);
-    throw error;
   }
 }
 
