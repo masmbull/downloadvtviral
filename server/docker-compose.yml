@@ -1,0 +1,10 @@
+services:
+  ytdlp:
+    build: .
+    container_name: downloadvtviral-ytdlp
+    ports:
+      - "8000:8000"
+    environment:
+      YTDLP_BIN: "yt-dlp"
+      YTDLP_PUBLIC_URL: "${YTDLP_PUBLIC_URL:-http://localhost:8000}"
+    restart: unless-stopped

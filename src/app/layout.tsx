@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     "no watermark",
     "free video downloader",
   ],
-  authors: [{ name: "DownloadVTViral" }],
+  authors: [{ name: "masmbull" }],
   openGraph: {
     title: "DownloadVTViral - Free Instagram & TikTok Video Downloader",
     description: "Download Instagram Reels, Posts, and TikTok videos without watermark.",

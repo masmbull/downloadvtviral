@@ -193,6 +193,26 @@ async function safeGetYouTubeVideo(url: string): Promise<MediaResult | null> {
   }
 }
 
+async function safeGetFromYtDlp(url: string): Promise<MediaResult | null> {
+  const apiUrl = process.env.YTDLP_API_URL;
+  if (!apiUrl) return null;
+  try {
+    const base = apiUrl.replace(/\/$/, '');
+    const response = await fetch(`${base}/api/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data?.downloads?.length) return null;
+    return data as MediaResult;
+  } catch (error) {
+    console.error('yt-dlp backend error:', error);
+    return null;
+  }
+}
+
 async function safeGetDoodstreamVideo(url: string): Promise<MediaResult | null> {
   try {
     const apiUrl = `https://doodstream-downloader.p.rapidapi.com/get-video?url=${encodeURIComponent(url)}`;
@@ -269,14 +289,19 @@ export async function POST(request: NextRequest) {
     }
 
     let videoData: MediaResult | null = null;
-    if (platform === 'instagram') {
-      videoData = await safeGetInstagramMedia(sanitizedUrl);
-    } else if (platform === 'tiktok') {
-      videoData = await safeGetTikTokVideo(sanitizedUrl);
-    } else if (platform === 'youtube') {
-      videoData = await safeGetYouTubeVideo(sanitizedUrl);
-    } else if (platform === 'doodstream') {
-      videoData = await safeGetDoodstreamVideo(sanitizedUrl);
+
+    videoData = await safeGetFromYtDlp(sanitizedUrl);
+
+    if (!videoData) {
+      if (platform === 'instagram') {
+        videoData = await safeGetInstagramMedia(sanitizedUrl);
+      } else if (platform === 'tiktok') {
+        videoData = await safeGetTikTokVideo(sanitizedUrl);
+      } else if (platform === 'youtube') {
+        videoData = await safeGetYouTubeVideo(sanitizedUrl);
+      } else if (platform === 'doodstream') {
+        videoData = await safeGetDoodstreamVideo(sanitizedUrl);
+      }
     }
 
     if (!videoData || videoData.downloads.length === 0) {
