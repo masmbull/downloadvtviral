@@ -1,37 +1,23 @@
 'use client';
 
-import { Play, Image as ImageIcon, Film, Music } from 'lucide-react';
+import { Play, Music, Image as ImageIcon, Film, Video, Link2 } from 'lucide-react';
+import { PLATFORMS, PLATFORM_NAMES, type Platform } from '@/lib/platforms';
 
-const supportedPlatforms = [
-  {
-    name: 'YouTube',
-    icon: Play,
-    color: 'text-red-500',
-    description: 'Download videos in HD, SD, and audio-only formats.',
-    supported: true,
-  },
-  {
-    name: 'TikTok',
-    icon: Music,
-    color: 'text-pink-500',
-    description: 'Save TikTok videos without watermark.',
-    supported: true,
-  },
-  {
-    name: 'Instagram',
-    icon: ImageIcon,
-    color: 'text-purple-500',
-    description: 'Download Reels, Posts, and Stories images/videos.',
-    supported: true,
-  },
-  {
-    name: 'Doodstream',
-    icon: Film,
-    color: 'text-blue-500',
-    description: 'Download Doodstream videos in high quality.',
-    supported: true,
-  },
-];
+const META: Partial<Record<Platform, { icon: typeof Play; color: string; description: string }>> = {
+  youtube: { icon: Play, color: 'text-red-500', description: 'Videos, Shorts, and audio in HD.' },
+  tiktok: { icon: Music, color: 'text-pink-500', description: 'Save TikTok videos without watermark.' },
+  instagram: { icon: ImageIcon, color: 'text-purple-500', description: 'Reels, Posts, and carousels.' },
+  twitter: { icon: Video, color: 'text-sky-500', description: 'Videos and GIFs from X / Twitter.' },
+  facebook: { icon: Film, color: 'text-blue-600', description: 'Facebook videos and Reels.' },
+  vimeo: { icon: Video, color: 'text-cyan-500', description: 'Vimeo videos in original quality.' },
+  doodstream: { icon: Film, color: 'text-orange-500', description: 'Direct Doodstream downloads.' },
+  videy: { icon: Film, color: 'text-emerald-500', description: 'Fast Videy CDN downloads.' },
+  vidara: { icon: Film, color: 'text-indigo-500', description: 'Ad-free HLS streams from Vidara.' },
+};
+
+function metaFor(platform: Platform) {
+  return META[platform] ?? { icon: Link2, color: 'text-muted-foreground', description: 'Supported via extractor engine.' };
+}
 
 export function SupportedPlatformsSection() {
   return (
@@ -40,28 +26,26 @@ export function SupportedPlatformsSection() {
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">Supported Platforms</h2>
           <p className="text-lg text-muted-foreground">
-            We support downloading from these platforms:
+            {PLATFORMS.length}+ platforms — social media and video hosts.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {supportedPlatforms.map((platform) => (
-            <div
-              key={platform.name}
-              className="border rounded-xl p-6 text-center hover:border-primary/50 transition-colors"
-            >
-              <div className="flex justify-center mb-4">
-                <platform.icon className={`w-12 h-12 ${platform.color}`} />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {PLATFORMS.map((platform) => {
+            const { icon: Icon, color, description } = metaFor(platform);
+            return (
+              <div
+                key={platform}
+                className="border rounded-xl p-5 text-center hover:border-primary/50 transition-colors"
+              >
+                <div className="flex justify-center mb-3">
+                  <Icon className={`w-9 h-9 ${color}`} />
+                </div>
+                <h3 className="font-semibold mb-1">{PLATFORM_NAMES[platform]}</h3>
+                <p className="text-xs text-muted-foreground">{description}</p>
               </div>
-              <h3 className="text-xl font-semibold mb-2">{platform.name}</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {platform.description}
-              </p>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                Supported
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

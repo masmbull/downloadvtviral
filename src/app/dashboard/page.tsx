@@ -16,7 +16,7 @@ interface StatsData {
   successRate: string;
   averageResponseTime: number;
   visitorStats: { totalVisits: number; uniqueVisitors: number; last5Minutes: number };
-  downloadsByPlatform: { instagram: number; tiktok: number; youtube: number; doodstream: number };
+  downloadsByPlatform: Record<string, number>;
   visitors: Array<{ ip: string; userAgent: string; timestamp: number }>;
 }
 
@@ -57,12 +57,8 @@ export default function DashboardPage() {
 
   if (!isAuthenticated) return null;
 
-  const platforms = [
-    { key: 'instagram', label: 'Instagram', color: 'text-pink-500' },
-    { key: 'tiktok', label: 'TikTok', color: 'text-blue-500' },
-    { key: 'youtube', label: 'YouTube', color: 'text-red-500' },
-    { key: 'doodstream', label: 'Doodstream', color: 'text-orange-500' },
-  ] as const;
+  const platformEntries = Object.entries(stats?.downloadsByPlatform ?? {}).sort((a, b) => b[1] - a[1]);
+  const maxPlatform = Math.max(1, ...platformEntries.map(([, n]) => n));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800">
@@ -140,16 +136,26 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {platforms.map(({ key, label, color }) => (
-                <div key={key} className="text-center p-4 rounded-xl bg-muted/50">
-                  <p className={`text-2xl font-bold ${color}`}>
-                    {stats?.downloadsByPlatform[key] ?? 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">{label}</p>
-                </div>
-              ))}
-            </div>
+            {platformEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No downloads recorded yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {platformEntries.map(([platform, count]) => (
+                  <div key={platform} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="capitalize font-medium">{platform}</span>
+                      <span className="text-muted-foreground">{count}</span>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full gradient-primary rounded-full"
+                        style={{ width: `${(count / maxPlatform) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

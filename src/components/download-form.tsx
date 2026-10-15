@@ -6,21 +6,17 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Film, Sparkles, Loader2, Plus, Image as ImageIcon, Crown, ExternalLink } from 'lucide-react';
 import { VisitorInfo } from '@/components/visitor-info';
+import {
+  detectPlatform,
+  MAX_BATCH,
+  type MediaResult,
+  type DownloadItem,
+  type Platform,
+} from '@/lib/platforms';
 
-interface DownloadItem {
-  quality: string;
-  url: string;
-}
-
-interface MediaResult {
-  platform: 'instagram' | 'tiktok' | 'youtube' | 'doodstream';
-  title: string;
-  thumbnail: string;
-  type: 'video' | 'images';
-  downloads: DownloadItem[];
-}
-
-type ResultEntry = MediaResult & { sourceUrl: string };
+type SuccessEntry = MediaResult & { sourceUrl: string; failed?: false };
+type FailedEntry = { sourceUrl: string; failed: true; message: string };
+type ResultEntry = SuccessEntry | FailedEntry;
 
 function sanitizeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9\s\-_.]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
@@ -45,7 +41,7 @@ export function DownloadForm() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const addUrl = () => {
-    if (urls.length < 3) setUrls([...urls, '']);
+    if (urls.length < MAX_BATCH) setUrls([...urls, '']);
   };
 
   const updateUrl = (index: number, value: string) => {
@@ -54,14 +50,7 @@ export function DownloadForm() {
     setUrls(next);
   };
 
-  const detectPlatform = (url: string): 'instagram' | 'tiktok' | 'youtube' | 'doodstream' | null => {
-    if (!url) return null;
-    if (url.includes('instagram.com') || url.includes('instagr.am')) return 'instagram';
-    if (url.includes('tiktok.com') || url.includes('vm.tiktok.com')) return 'tiktok';
-    if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
-    if (url.includes('doodstream.com') || url.includes('dood.to')) return 'doodstream';
-    return null;
-  };
+  const detect = (url: string): Platform | null => detectPlatform(url || '');
 
   const handlePaste = async (index: number) => {
     try {
@@ -78,16 +67,16 @@ export function DownloadForm() {
     setError('');
     setResults([]);
 
-    const filled = urls.filter((u) => detectPlatform(u));
-    const toProcess = filled.slice(0, 3);
+    const filled = urls.filter((u) => detect(u));
+    const toProcess = filled.slice(0, MAX_BATCH);
 
     if (toProcess.length === 0) {
-      setError('Paste at least one Instagram, TikTok, YouTube, or Doodstream URL');
+      setError('Paste at least one supported video or post link');
       return;
     }
 
-    if (filled.length > 3) {
-      setError('Demo supports 3 links max. Purchase pro for unlimited batch.');
+    if (filled.length > MAX_BATCH) {
+      setError(`Demo supports ${MAX_BATCH} links max. Purchase pro for unlimited batch.`);
       return;
     }
 
@@ -95,18 +84,18 @@ export function DownloadForm() {
 
     try {
       const entries = await Promise.all(
-        toProcess.map(async (url) => {
-          const platform = detectPlatform(url)!;
+        toProcess.map(async (url): Promise<ResultEntry> => {
+          const platform = detect(url)!;
           const response = await fetch('/api/download', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, platform }),
           });
-          const data = (await response.json()) as MediaResult;
+          const data = await response.json();
           if (!response.ok) {
-            return { ...data, error: true, sourceUrl: url } as any;
+            return { sourceUrl: url, failed: true, message: data?.error || 'Failed to extract media' };
           }
-          return { ...data, sourceUrl: url } as ResultEntry;
+          return { ...(data as MediaResult), sourceUrl: url };
         })
       );
       setResults(entries);
@@ -117,7 +106,7 @@ export function DownloadForm() {
     }
   };
 
-  const handleDownload = (result: ResultEntry, download: DownloadItem) => {
+  const handleDownload = (result: SuccessEntry, download: DownloadItem) => {
     const key = `${result.sourceUrl}-${download.url}`;
     setDownloading(key);
     const ext = result.type === 'images' ? 'jpg' : 'mp4';
@@ -141,7 +130,9 @@ export function DownloadForm() {
               <Sparkles className="w-4 h-4 text-primary" />
               Paste video or post link here
             </label>
-            <p className="text-xs text-muted-foreground">Supported: YouTube, TikTok, Instagram, Doodstream</p>
+            <p className="text-xs text-muted-foreground">
+              Supported: YouTube, TikTok, Instagram, X, Facebook, Reddit, Vimeo, Doodstream, Videy, Vidara & more
+            </p>
             <div className="flex flex-col gap-2">
               {urls.map((url, idx) => (
                 <div key={idx} className="flex gap-2">
@@ -160,12 +151,12 @@ export function DownloadForm() {
                   </div>
                 </div>
               ))}
-              {urls.length < 3 && (
+              {urls.length < MAX_BATCH && (
                 <Button type="button" variant="outline" size="sm" onClick={addUrl} className="gap-2">
                   <Plus className="w-4 h-4" /> Add link
                 </Button>
               )}
-              {urls.length >= 3 && (
+              {urls.length >= MAX_BATCH && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Crown className="w-3 h-3" />
                   <span>Demo limit reached. Purchase pro for unlimited batch downloads.</span>
@@ -200,19 +191,20 @@ export function DownloadForm() {
             {results.map((result, idx) => (
               <div key={idx} className={`border-t border-border pt-6 ${idx > 0 ? 'mt-6' : ''}`} id={`batch-result-${idx}`}>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-semibold">{(result as any).error ? 'Failed' : (result.title || 'Media Found')}</h2>
+                  <h2 className="text-2xl font-semibold">{result.failed ? 'Failed' : (result.title || 'Media Found')}</h2>
                   <Button variant="ghost" size="sm" onClick={() => setResults(results.filter((_, i) => i !== idx))}>
                     Dismiss
                   </Button>
                 </div>
 
-                {!(result as any).error && result.thumbnail && (
+                {!result.failed && result.thumbnail && (
                   <div className="mb-4 rounded-xl overflow-hidden aspect-video bg-muted">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={result.thumbnail} alt="" className="w-full h-full object-cover" />
                   </div>
                 )}
 
-                {!(result as any).error ? (
+                {!result.failed ? (
                   <>
                     <div className="flex items-center gap-2 mb-3">
                       {result.type === 'images' ? (
@@ -286,7 +278,7 @@ export function DownloadForm() {
                   </>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">{(result as any).message || (result as any).error || 'Failed to extract media'}</p>
+                    <p className="text-sm text-muted-foreground">{result.message}</p>
                     <Button
                       variant="outline"
                       size="sm"

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { visits, downloads, recordVisit } from '@/lib/store';
+import { visits, downloads, recordVisit, visitorStats, countDownloadsByPlatform } from '@/lib/store';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,24 +16,13 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const now = Date.now();
-  const last5Min = visits.filter((v) => now - v.timestamp < 5 * 60 * 1000).length;
-  const uniqueIps = new Set(visits.map((v) => v.ip)).size;
-
   return NextResponse.json({
     visits: visits.slice(0, 100),
     stats: {
-      totalVisits: visits.length,
-      uniqueVisitors: uniqueIps,
-      last5Minutes: last5Min,
+      ...visitorStats(),
       totalDownloads: downloads.length,
       recentDownloads: downloads.slice(0, 10),
-      downloadsByPlatform: {
-        instagram: downloads.filter((d) => d.platform === 'instagram').length,
-        tiktok: downloads.filter((d) => d.platform === 'tiktok').length,
-        youtube: downloads.filter((d) => d.platform === 'youtube').length,
-        doodstream: downloads.filter((d) => d.platform === 'doodstream').length,
-      },
+      downloadsByPlatform: countDownloadsByPlatform(),
     },
   });
 }

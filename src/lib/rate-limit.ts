@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { detectPlatform, type Platform } from '@/lib/platforms';
 
 // Simple in-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -7,10 +8,10 @@ const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const MAX_REQUESTS = 10; // 10 requests per window
 
 export function rateLimit(request: NextRequest): boolean {
-  const ip = request.headers.get('x-forwarded-for') || 
-             request.headers.get('x-real-ip') || 
+  const ip = request.headers.get('x-forwarded-for') ||
+             request.headers.get('x-real-ip') ||
              'unknown';
-  
+
   const now = Date.now();
   const record = rateLimitMap.get(ip);
 
@@ -30,36 +31,10 @@ export function rateLimit(request: NextRequest): boolean {
   return true;
 }
 
-export function validateUrl(url: string, platform: string): boolean {
-  try {
-    const urlObj = new URL(url);
-
-    if (platform === 'instagram') {
-      return urlObj.hostname.includes('instagram.com') ||
-             urlObj.hostname.includes('instagr.am');
-    }
-
-    if (platform === 'tiktok') {
-      return urlObj.hostname.includes('tiktok.com') ||
-             urlObj.hostname.includes('vm.tiktok.com');
-    }
-
-    if (platform === 'youtube') {
-      return urlObj.hostname.includes('youtube.com') ||
-             urlObj.hostname.includes('youtu.be') ||
-             urlObj.hostname.includes('youtube-nocookie.com');
-    }
-
-    if (platform === 'doodstream') {
-      return urlObj.hostname.includes('doodstream.com') ||
-             urlObj.hostname.includes('dood.to') ||
-             urlObj.hostname.includes('doodly.com');
-    }
-
-    return false;
-  } catch {
-    return false;
-  }
+/** Returns true when the URL host matches the claimed platform. */
+export function validateUrl(url: string, platform: Platform): boolean {
+  const detected = detectPlatform(url);
+  return detected === platform;
 }
 
 export function sanitizeInput(input: string): string {

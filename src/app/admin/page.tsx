@@ -217,13 +217,10 @@ export default function AdminPage() {
                 <span className="text-muted-foreground">Failed</span>
                 <span className="font-medium text-red-500">{stats.failedRequests.toLocaleString()}</span>
               </div>
-              <div className="flex justify-between items-center py-2 border-b border-border">
-                <span className="text-muted-foreground">Instagram</span>
-                <span className="font-medium">{(stats.successfulDownloads * 0.6).toFixed(0).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center py-2">
-                <span className="text-muted-foreground">TikTok</span>
-                <span className="font-medium">{(stats.successfulDownloads * 0.4).toFixed(0).toLocaleString()}</span>
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground">
+                  Per-platform breakdown is available in the Dashboard.
+                </p>
               </div>
             </CardContent>
           </Card>
