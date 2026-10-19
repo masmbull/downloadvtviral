@@ -4,6 +4,7 @@ import json
 import os
 import random
 import re
+import shutil
 import socket
 import string
 import time
@@ -308,10 +309,23 @@ RESOLVERS = {
 
 
 def try_ytdlp(url: str, platform: str) -> dict | None:
+    ytdlp_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "noplaylist": True,
+    }
+    # Some extractors (YouTube) require a JS runtime. Prefer deno when present.
+    deno_bin = shutil.which("deno")
+    if deno_bin:
+        # shutil.which may return a .CMD/.PS1 wrapper; yt-dlp needs the real binary.
+        if not deno_bin.lower().endswith((".exe", "")):
+            candidate = os.path.join(os.path.dirname(deno_bin), "deno", "deno.exe")
+            if os.path.exists(candidate):
+                deno_bin = candidate
+        ytdlp_opts["js_runtimes"] = {"deno": {"binary": deno_bin}}
     try:
-        with yt_dlp.YoutubeDL(
-            {"quiet": True, "no_warnings": True, "skip_download": True, "format": "best", "noplaylist": True}
-        ) as ydl:
+        with yt_dlp.YoutubeDL(ytdlp_opts) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception:
         return None
@@ -333,11 +347,20 @@ def try_ytdlp(url: str, platform: str) -> dict | None:
             [(f"Image {i + 1}", u) for i, u in enumerate(image_urls[:10])],
         )
 
+    # yt-dlp leaves the top-level "url" empty for some extractors; pick the best
+    # progressive format that already has a resolved URL.
+    direct = info.get("url")
+    if not direct:
+        for f in reversed(info.get("formats") or []):
+            u = f.get("url")
+            if u:
+                direct = u
+                break
+
     if PUBLIC_URL:
         downloads = [(label, stream_url(url, fmt) or "") for label, fmt in QUALITY_PRESETS]
         downloads = [(label, u) for label, u in downloads if u]
     else:
-        direct = info.get("url")
         downloads = [("Best Quality", direct)] if direct else []
 
     if not downloads:
