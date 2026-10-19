@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, Download, Activity, Lock, LogOut } from 'lucide-react';
+import { Menu, X, Download, Activity, LogOut } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/components/admin-auth-provider';
@@ -69,16 +69,16 @@ export function Navbar() {
                 Logout
               </Button>
             )}
-            {!isAuthenticated && (
-              <Link href="/admin/login">
-                <Button
-                  variant="ghost"
-                  className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-1"
-                >
-                  <Lock className="w-4 h-4" />
-                  Admin
-                </Button>
-              </Link>
+            {isAuthenticated && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="text-sm font-medium text-red-500 hover:text-red-600"
+              >
+                <LogOut className="w-4 h-4 mr-1" />
+                Logout
+              </Button>
             )}
             <ThemeToggle />
           </div>
@@ -142,16 +142,6 @@ export function Navbar() {
                   <LogOut className="w-4 h-4 mr-2" />
                   Logout
                 </Button>
-              )}
-              {!isAuthenticated && (
-                <Link href="/admin/login" onClick={() => setMobileOpen(false)}>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sm font-medium"
-                  >
-                    Admin
-                  </Button>
-                </Link>
               )}
             </div>
           </div>
